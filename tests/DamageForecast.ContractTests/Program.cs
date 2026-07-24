@@ -378,6 +378,7 @@ cases.AddRange(LifecycleContractCases.Create());
 cases.AddRange(NativeCoveringScreenContractCases.Create());
 cases.AddRange(ExternalObservationFixtureCases.Create());
 cases.AddRange(ExternalObservationValidationCases.Create());
+cases.AddRange(ExternalObservationAdapterContractCases.Create());
 cases.AddRange(IdentityPackagingContractCases.Create());
 cases.AddRange(IdentityMigrationContractCases.Create());
 cases.AddRange(IdentityUpgradeToolContractCases.Create());
