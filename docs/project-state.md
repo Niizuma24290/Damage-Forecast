@@ -1,6 +1,6 @@
 # Project State
 
-Last reconciled: 2026-07-24
+Last reconciled: 2026-07-25
 
 ## Product Naming
 
@@ -37,7 +37,7 @@ Damage Forecast does not simulate a full turn, does not call real damage or comm
 - Unknown, unsupported, non-combat, zero-output, hidden UI, or untrusted partial values are hidden rather than guessed.
 - HUD refreshes from health-bar lifecycle hooks, hand pile changes, relic add/remove/melt, selected turn lifecycle hooks, and settings changes.
 - `FreezeHudWithinPlayerTurn` is enabled by default. It freezes a display snapshot within the player turn and commits a final snapshot through the compatible turn-end hook surface: `Hook.BeforeTurnEnd` on stable v0.107.1 or `Hook.BeforeSideTurnEnd` on the current frozen beta v0.109.0 capability surface; it does not alter forecast mechanics.
-- Covering native pages, modal/popup/overlay screens, combat end, invalid player state, or disabled HUD settings hide and clear relevant display state.
+- Known native covering pages hide the HUD only while at least one covering screen remains open and preserve the committed forecast snapshot for immediate restore. Map and `NCardPileScreen` paths cover the map, draw pile, discard pile, and exhaust pile; this matrix is RuntimeVerified on beta v0.109.0, while stable v0.107.1 remains L2-only for this fix. Combat end, invalid player state, or disabled HUD settings still clear the relevant display state.
 - The temporary local health-bar center guide, HUD text center guide, and alignment runtime log have been removed after the alignment observation task.
 - Default `HealthBarRight` HUD placement now centers the main HUD label on the same local health-bar center line used by the temporary guide. User X/Y offsets still apply after the default position is calculated.
 - The default right-anchor HUD alignment now assigns the current HUD string before positioning, measures that string with `Font.GetStringSize(...)`, and centers the measured text bounds on the health-bar center line instead of centering a fixed empty label rect.
@@ -309,8 +309,8 @@ Known Phase 12B limitations:
 - Active assembly, DLL stem, manifest ID/stem, install directory, BaseLib registration key, Harmony owner, namespace, and primary diagnostic prefix are aligned with the new identity.
 - Current config identity is `DamageForecast.Settings.DamageForecastBaseLibConfig` / `DamageForecast.cfg`; all 18 ordered settings survived first migration, setting write/restart, reverse-sync rollback, old-version read, re-upgrade, and final restart.
 - The compatibility subsystem under `src/DamageForecast/Compatibility/` owns the legacy migration source descriptors and direct schema graph. Ordinary Settings/UI/Combat/Forecast/Patches code contains no legacy config key, file, or Mod ID literal.
-- Final stable local install is v0.3.0 at `mods/damage-forecast`, with DLL SHA256 `9600B23C85DB1AF7CFEDD75536CCA1FC2ECCC6455AD6C18C1AD6FF54AB25E44B` and manifest SHA256 `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`.
-- Runtime depth: stable v0.107.1 full migration/rollback/re-upgrade matrix PASS; beta v0.109.0 matching-artifact, config continuity, one-load/one-page/one-HUD smoke PASS; the current stable matching artifact passed the damaging Status/Curse hand matrix, supported/direct combinations, and Block/no-Block scenes with a fresh one-load/no-attributable-error log.
+- Current local install is the beta-matching v0.3.0 artifact at `mods/damage-forecast`, with DLL SHA256 `7D3DEEFB5A17584B67C6F28B8C28C7D5E48FF4AB53D440B2FE287BB1D8916FCF` and manifest SHA256 `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`.
+- Runtime depth: stable v0.107.1 full migration/rollback/re-upgrade matrix PASS; beta v0.109.0 matching-artifact, config continuity, one-load/one-page/one-HUD smoke PASS; the prior stable matching artifact passed the damaging Status/Curse hand matrix, supported/direct combinations, and Block/no-Block scenes with a fresh one-load/no-attributable-error log. The native covering-screen fix is RuntimeVerified on beta for ordinary combat, map, draw pile, discard pile, and exhaust pile with immediate restore after close; stable covering-screen L3 remains Pending.
 - Workshop identity remains external and unchanged; repository-root rename remains unperformed.
 - The former damage-dealing Status/Curse hand-card HUD-hidden defect is fixed and RuntimeVerified for Burn, Toxic, Decay, Infection, Wither, a representative verified-direct card, non-damaging Status/Curse, supported-card combinations, and Block/no-Block scenes. Support is structural and fail-closed, not an unrestricted future-card or Mod-card compatibility claim.
 

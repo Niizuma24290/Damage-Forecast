@@ -40,16 +40,36 @@ internal static class NativeCoveringScreenLifecyclePatch
             {
                 yield return exit;
             }
+
+            if (!string.Equals(
+                    typeName,
+                    DamageForecastNativeCoveringScreenTracker.MapScreenTypeName,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var open = AccessTools.DeclaredMethod(type, "Open");
+            if (open is not null && seen.Add(open))
+            {
+                yield return open;
+            }
+
+            var close = AccessTools.DeclaredMethod(type, "Close");
+            if (close is not null && seen.Add(close))
+            {
+                yield return close;
+            }
         }
     }
 
     private static void Postfix(Node __instance, MethodBase __originalMethod)
     {
-        if (__originalMethod.Name is "_Ready" or "_EnterTree")
+        if (__originalMethod.Name is "_Ready" or "_EnterTree" or "Open")
         {
             DamageForecastNativeCoveringScreenTracker.MarkOpened(__instance);
         }
-        else if (__originalMethod.Name == "_ExitTree")
+        else if (__originalMethod.Name is "_ExitTree" or "Close")
         {
             DamageForecastNativeCoveringScreenTracker.MarkClosed(__instance);
         }

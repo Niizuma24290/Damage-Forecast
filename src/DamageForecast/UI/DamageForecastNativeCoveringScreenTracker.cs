@@ -4,6 +4,11 @@ namespace DamageForecast.UI;
 
 internal static class DamageForecastNativeCoveringScreenTracker
 {
+    internal const string MapScreenTypeName =
+        "MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen";
+    internal const string CardPileScreenTypeName =
+        "MegaCrit.Sts2.Core.Nodes.Screens.NCardPileScreen";
+
     internal static readonly string[] CoveringScreenTypeNames =
     [
         "MegaCrit.Sts2.Core.Nodes.CommonUi.NSettingsScreenPopup",
@@ -17,7 +22,8 @@ internal static class DamageForecastNativeCoveringScreenTracker
         "MegaCrit.Sts2.Core.Nodes.Screens.CardSelection.NDeckUpgradeSelectScreen",
         "MegaCrit.Sts2.Core.Nodes.Screens.CardSelection.NSimpleCardSelectScreen",
         "MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen.NGameOverScreen",
-        "MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen",
+        MapScreenTypeName,
+        CardPileScreenTypeName,
         "MegaCrit.Sts2.Core.Nodes.Screens.NDeckViewScreen",
         "MegaCrit.Sts2.Core.Nodes.Screens.NRewardsScreen",
         "MegaCrit.Sts2.Core.Nodes.Screens.PauseMenu.NPauseMenu",
