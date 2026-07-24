@@ -1,0 +1,42 @@
+{
+  "scenarioId": "turn-end.doubt.power.v1",
+  "status": "Complete",
+  "events": [
+    {
+      "eventId": "observed.doubt",
+      "sourceId": "card.doubt",
+      "phase": "TurnEndInHand",
+      "order": 0,
+      "lane": "NonDamage",
+      "granularity": "SingleEvent",
+      "amount": 0,
+      "status": "Observed",
+      "reasonCode": "observed.fixture",
+      "providerDetail": "handwritten offline fixture"
+    }
+  ],
+  "blockableTotal": 0,
+  "directHpLossTotal": 0,
+  "unsupported": [],
+  "metadata": {
+    "schemaVersion": 1,
+    "providerId": "fixture-provider",
+    "providerVersion": "1.0.0",
+    "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
+    "sourceDirty": false,
+    "gameChannel": "beta",
+    "gameVersion": "v0.109.0",
+    "gameCommit": "c12f634d",
+    "gameAssemblySha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "adapterVersion": "fixture-v1",
+    "providerArtifactSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "evidenceLevel": "L2-max",
+    "runtimeVerified": false,
+    "seed": 515151,
+    "runId": "beta-doubt-run-1",
+    "generatedAtUtc": "2026-07-25T00:02:00Z",
+    "capabilityManifestSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "unsupportedRegistrySha256": "4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "rawProviderOutputHash": "5555555555555555555555555555555555555555555555555555555555555555"
+}

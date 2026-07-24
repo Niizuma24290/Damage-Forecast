@@ -375,6 +375,8 @@ cases.AddRange(BlockPolicyContractCases.Create());
 cases.AddRange(HpLossModifierContractCases.Create());
 cases.AddRange(PoisonPolicyContractCases.Create());
 cases.AddRange(LifecycleContractCases.Create());
+cases.AddRange(ExternalObservationFixtureCases.Create());
+cases.AddRange(ExternalObservationValidationCases.Create());
 cases.AddRange(IdentityPackagingContractCases.Create());
 cases.AddRange(IdentityMigrationContractCases.Create());
 cases.AddRange(IdentityUpgradeToolContractCases.Create());

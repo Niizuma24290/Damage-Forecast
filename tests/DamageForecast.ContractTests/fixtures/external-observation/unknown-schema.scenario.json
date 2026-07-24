@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 99,
+  "scenarioId": "turn-end.burn.blockable.v1",
+  "targetChannel": "stable",
+  "seed": 424242,
+  "requestedCapabilities": [
+    "turn-end-card",
+    "ordered-events"
+  ],
+  "initialState": {
+    "playerHp": 50,
+    "playerBlock": 0
+  },
+  "orderedInputs": [
+    {
+      "eventId": "input.burn",
+      "sourceId": "card.burn",
+      "phase": "TurnEndInHand",
+      "order": 0,
+      "lane": "Blockable",
+      "granularity": "SingleEvent",
+      "amount": 2
+    }
+  ],
+  "expectedEvidenceLevel": "L2"
+}

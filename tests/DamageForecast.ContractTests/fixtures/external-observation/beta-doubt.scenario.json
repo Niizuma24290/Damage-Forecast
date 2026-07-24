@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "turn-end.doubt.power.v1",
+  "targetChannel": "beta",
+  "seed": 515151,
+  "requestedCapabilities": [
+    "turn-end-card",
+    "ordered-events"
+  ],
+  "initialState": {
+    "playerHp": 50,
+    "playerBlock": 0
+  },
+  "orderedInputs": [
+    {
+      "eventId": "input.doubt",
+      "sourceId": "card.doubt",
+      "phase": "TurnEndInHand",
+      "order": 0,
+      "lane": "NonDamage",
+      "granularity": "SingleEvent",
+      "amount": 0
+    }
+  ],
+  "expectedEvidenceLevel": "L2"
+}
