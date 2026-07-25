@@ -2,12 +2,12 @@
 
 ## Current Control
 
-State: `DF-S3 Complete in working tree / DF-S4 Not Authorized`
-Last completed: `DF-S3E Evidence Closure`
+State: `DF-S3 Complete / DF-S4 Not Authorized`
+Last completed: `DF-S3F Local Git Checkpoint`
 Next: `DF-S4A read-only Adoption Decision Design only after separate approval`
-Approved: `No — DF-S4 is not authorized; DF-S3A / DF-S3B / DF-S3C / DF-S3D are complete`
+Approved: `No — DF-S4 is not authorized; DF-S3A through DF-S3F are complete`
 Evidence: `本卡 §4 DF-S0 至 DF-S3 增量证据`
-Repository: `DF-S2A 286fd56 / DF-S2B 573baa6；DF-S3B/C 为当前 working-tree implementation，尚无 DF-S3 Git checkpoint`
+Repository: `DF-S2A 286fd56 / DF-S2B 573baa6 / DF-S3 implementation 173560d6e6c630c05a6879b5600dd4d449b2d364 / DF-S3F this task-card commit`
 
 任务性质：Damage Forecast 独立的测试与验证能力评估。
 
@@ -592,10 +592,35 @@ Needs runtime evidence
 | HUD / install / multiplayer / Workshop / L3 | Provider out of scope | 不属于当前 provider 证明范围 |
 
 - No new execution: 本 Gate 不重新调用 provider，不重跑 tests/build；
-- No repository checkpoint: DF-S3B/C/D 仍在当前共享 working tree，尚未 commit；
+- At Gate closure: DF-S3B/C/D 当时仍在当前共享 working tree、尚未 commit；该状态已由
+  后续 DF-S3F checkpoint supersede；
 - Preserved: 不修改源码、测试、tools、普通 guardrail、README、HUD、安装、游戏或
   Workshop；不 push、不发布；
 - Next: 只有用户单独批准后才能进入 DF-S4A read-only Adoption Decision Design。
+
+#### DF-S3F — Local Git Checkpoint
+
+- Result: `Complete — local checkpoint`；
+- Implementation commit:
+  `173560d6e6c630c05a6879b5600dd4d449b2d364`
+  (`test: checkpoint damage forecast differential matrix`)；
+- Committed scope: DF-S3 主任务卡、3 个 Differential Matrix C# 文件、3 个 matrix
+  JSON fixtures，以及 `Program.cs` 中仅 DifferentialMatrix 注册 hunk，共 8 个路径；
+- Explicit exclusion: `Program.cs` 的 Feel No Pain 注册 hunk、Feel No Pain 生产源码、
+  contracts 和任务卡均未进入 commit；
+- Shared working-tree verification before staging: `336/336`，Release 0 warning /
+  0 error；
+- Index-only staged snapshot verification: 从 Git index 导出的隔离快照不含 Feel No Pain
+  注册，contracts `315/315`，Release 0 warning / 0 error；
+- Cached scope check: staged diff 无 `FeelNoPain`、
+  `VerifiedEtherealExhaustBlockReader` 或 Feel No Pain task-card token；
+- Provider checkpoint remained exact clean
+  `42396191e4bd66ca8ab27cd9b9b9f4f537966978`；
+- External DF-S3D JSON outputs remain ignored local evidence under
+  `work/forecast-external-observation/`，不进入 Git commit；
+- Git boundary: local commit only；未 push、tag、发布或修改 remote；
+- Remaining working tree: Feel No Pain 和其他既有并行改动保持未提交、未覆盖；
+- Next: DF-S4A 仍需用户单独批准；DF-S3F 不构成 DF-S4 授权。
 
 ### DF-S4 — Adoption Decision
 
