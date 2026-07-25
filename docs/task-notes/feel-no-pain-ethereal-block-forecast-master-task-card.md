@@ -6,12 +6,12 @@
 
 ## Current Control
 
-State: `Work Complete / Checkpoint Pending`
-Last completed: `FP5 — authority synchronized and task-owned staged diff reviewed`
-Next: `Separate approval for local Git checkpoint`
-Approved: `FP5 closure review complete; commit is not approved`
-Evidence: `§13–§14`
-Repository: `Task-owned staged diff ready / No Checkpoint`
+State: `Closed`
+Last completed: `FP5 Final Closure Record`
+Next: `None — task closed; any Stampede refinement requires a new Gate`
+Approved: `Yes — implementation checkpoint and docs-only closure authorized`
+Evidence: `§13–§15`
+Repository: `Implementation checkpoint a72fff5; this docs-only commit is the closure marker`
 
 ---
 
@@ -542,21 +542,14 @@ FP2 默认允许：
 
 ---
 
-## 12. 下一批准边界
+## 12. 后续边界
 
-FP0–FP5 的实现、验证与 authority 审查已经完成。下一步只接受单独的本地
-checkpoint 批准；push、tag、publish、安装、启动游戏和 Workshop 仍不包含：
-
-```text
-批准 Feel No Pain 本地 Git checkpoint。
-只允许提交已经审查的 task-owned staged diff；提交前后核对 staged paths、
-staged diff 和剩余未暂存并行改动。不得 push、tag、publish、安装、启动游戏
-或执行 Workshop 动作。
-```
+本任务已关闭，没有待执行 Gate。push、tag、publish、安装、启动游戏和
+Workshop 均未包含在本任务收口中。
 
 若未来希望在一部分确定性 Stampede 场景中恢复 `-N`，必须另开独立精化
-Gate，先证明原生选牌和副作用是确定且完整可建模的；不得在本次 checkpoint
-中扩大当前安全的 Unknown 边界。
+Gate，先证明原生选牌和副作用是确定且完整可建模的；不得把当前安全的
+Unknown 边界作为未完成缺陷继续追加到本任务。
 
 ---
 
@@ -707,12 +700,13 @@ stable 或 beta 任一单目标的完整 `12/12`；FP5 authority 同步也不把
 
 ### FP5 — Authority and Repository Closure Review
 
-- Result: `Complete / Checkpoint Pending`
+- Result: `Closed`
 - Authority: 本任务卡、`docs/mechanics-evidence.md`、
   `docs/project-state.md`、`docs/task-notes/README.md` 已同步。
 - Staging: 仅纳入 Feel No Pain 自有文件和共享文件中的独立 hunks；
   Forecast Timeline/Architecture 并行改动保持未暂存。
-- Repository: 尚未 commit；下一步需要单独批准本地 checkpoint。
+- Repository: implementation checkpoint `a72fff5`；本节所在的 docs-only
+  commit 是最终 closure marker。
 
 最终收口：
 
@@ -722,5 +716,22 @@ Result: 原生 Feel No Pain 已按真实 Ethereal/turn-end 顺序支持 future B
 Current state: stable/beta L1/L2 通过；L3-01–12 跨 target 覆盖；
                pending Stampede playable Attack 保持安全 Unknown。
 Authority: 本任务卡 + mechanics-evidence.md + project-state.md + task-notes/README.md。
-Repository: task-owned staged diff ready；checkpoint pending。
+Repository: implementation checkpoint a72fff5；docs-only closure marker 已形成。
 ```
+
+---
+
+## 15. FP5 Final Closure Record
+
+- Result: `Closed`
+- Implementation checkpoint:
+  `a72fff5f251b2b13d0033509a67755700cdf9fba`
+  (`Add Feel No Pain Ethereal block forecasting`)。
+- Closure marker: 本节所在的 docs-only local commit；其精确 hash 在提交后
+  核对报告中记录。
+- Authority: Current Control、机制 ledger、当前产品事实和任务索引均已同步。
+- Preserved: Forecast Timeline/Architecture 并行工作保持未暂存；未修改
+  production/tests；未执行 push、tag、publish、安装、游戏启动或 Workshop。
+- Runtime boundary: stable/beta L1/L2 完成；L3-01–12 为跨 target 覆盖，
+  不宣称任一目标单独 `12/12`；pending Stampede playable Attack 仍为
+  contract-defined Unknown。
