@@ -11,6 +11,8 @@
 - 已关闭测试护栏：[`forecast-engine-test-guardrails-master-task-card.md`](forecast-engine-test-guardrails-master-task-card.md)。
 - 已关闭 G6：[`full-technical-identity-migration-master-task-card.md`](full-technical-identity-migration-master-task-card.md)。
 - 已关闭 HUD 覆盖层修复：[`native-covering-screen-hud-visibility-master-task-card.md`](native-covering-screen-hud-visibility-master-task-card.md)。
+- 已关闭 StS2Sim × Damage Forecast 利用评估：[`sts2sim-damage-forecast-evaluation-master-task-card.md`](sts2sim-damage-forecast-evaluation-master-task-card.md)。
+- 新候选 Forecast 时间链/API 统一审查：[`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)。
 - 排队中的架构任务：[`forecast-engine-architecture-stabilization-master-task-card.md`](forecast-engine-architecture-stabilization-master-task-card.md)。
 - 历史 authority consolidation：[`documentation-authority-consolidation-master-task-card.md`](documentation-authority-consolidation-master-task-card.md)。
 
@@ -60,13 +62,15 @@
 | Post-G6 C1-C4 | [`post-g6-full-name-unification-master-task-card.md`](post-g6-full-name-unification-master-task-card.md) |
 | Damage-dealing Status / Curse HUD 修复（已关闭） | [`damaging-status-curse-hud-hidden-master-task-card.md`](damaging-status-curse-hud-hidden-master-task-card.md) |
 | 地图与牌堆覆盖层 HUD 修复（已关闭） | [`native-covering-screen-hud-visibility-master-task-card.md`](native-covering-screen-hud-visibility-master-task-card.md) |
+| StS2Sim × Damage Forecast 利用评估（已关闭） | [`sts2sim-damage-forecast-evaluation-master-task-card.md`](sts2sim-damage-forecast-evaluation-master-task-card.md) |
+| Forecast 时间链/API 统一审查（候选） | [`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md) |
 
 ## Task-note classification
 
 - `CURRENT_AUTHORITY`：本文件。
 - `CHECKPOINT_TASK`：无。
-- `CLOSED_TASK`：[`native-covering-screen-hud-visibility-master-task-card.md`](native-covering-screen-hud-visibility-master-task-card.md)，CV0–CV5 已关闭；[`damaging-status-curse-hud-hidden-master-task-card.md`](damaging-status-curse-hud-hidden-master-task-card.md)，HC0-HC5 已关闭；[`post-g6-full-name-unification-master-task-card.md`](post-g6-full-name-unification-master-task-card.md)，C1-C4 已关闭；[`forecast-engine-test-guardrails-master-task-card.md`](forecast-engine-test-guardrails-master-task-card.md)，TG0-TG7 已关闭；[`full-technical-identity-migration-master-task-card.md`](full-technical-identity-migration-master-task-card.md)，G6-0..G6-7 已关闭。
-- `PROPOSED_TASK`：[`forecast-engine-architecture-stabilization-master-task-card.md`](forecast-engine-architecture-stabilization-master-task-card.md)，保持 queued，尚未获得 AR1。
+- `CLOSED_TASK`：[`sts2sim-damage-forecast-evaluation-master-task-card.md`](sts2sim-damage-forecast-evaluation-master-task-card.md)，DF-S0–DF-S4C 已关闭；[`native-covering-screen-hud-visibility-master-task-card.md`](native-covering-screen-hud-visibility-master-task-card.md)，CV0–CV5 已关闭；[`damaging-status-curse-hud-hidden-master-task-card.md`](damaging-status-curse-hud-hidden-master-task-card.md)，HC0-HC5 已关闭；[`post-g6-full-name-unification-master-task-card.md`](post-g6-full-name-unification-master-task-card.md)，C1-C4 已关闭；[`forecast-engine-test-guardrails-master-task-card.md`](forecast-engine-test-guardrails-master-task-card.md)，TG0-TG7 已关闭；[`full-technical-identity-migration-master-task-card.md`](full-technical-identity-migration-master-task-card.md)，G6-0..G6-7 已关闭。
+- `PROPOSED_TASK`：[`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)，FTU-S0 尚未批准；[`forecast-engine-architecture-stabilization-master-task-card.md`](forecast-engine-architecture-stabilization-master-task-card.md)，保持 queued，尚未获得 AR1。
 - `SUPERSEDED_HANDOFF`：所有 `*handoff*` 文件；保留 hash、工作区和当时 next-step。
 - `RAW_EVIDENCE`：`phase-12c-aud-0007-*` 和 `phase-12c-audit/*`。
 - `HISTORICAL_RECORD`：已关闭的 Documentation Authority Consolidation task card、`project-total-note.md` 及其余 completed Phase、runtime、Workshop 和 compatibility note。

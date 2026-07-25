@@ -2,12 +2,14 @@
 
 ## Current Control
 
-State: `DF-S3 Complete / DF-S4 Not Authorized`
-Last completed: `DF-S3F Local Git Checkpoint`
-Next: `DF-S4A read-only Adoption Decision Design only after separate approval`
-Approved: `No — DF-S4 is not authorized; DF-S3A through DF-S3F are complete`
-Evidence: `本卡 §4 DF-S0 至 DF-S3 增量证据`
-Repository: `DF-S2A 286fd56 / DF-S2B 573baa6 / DF-S3 implementation 173560d6e6c630c05a6879b5600dd4d449b2d364 / DF-S3F this task-card commit`
+State: `DF-S4 Complete / Closed`
+Last completed: `DF-S4C Local Git Checkpoint`
+Next: `FTU-S0 read-only Current Trigger Chain Audit only after separate approval`
+Approved: `No — DF-S4C 已完成；FTU-S0、实现、push、tag 和发布均未授权`
+Evidence: `本卡 §4 DF-S0 至 DF-S4C 增量证据`
+Repository: `DF-S2A 286fd56 / DF-S2B 573baa6 / DF-S3 implementation 173560d6e6c630c05a6879b5600dd4d449b2d364 / DF-S3F dfd0a8ce6352257ca663d956a6164db4882d9568 / DF-S4C this commit`
+Follow-on:
+[`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)
 
 任务性质：Damage Forecast 独立的测试与验证能力评估。
 
@@ -643,6 +645,72 @@ Needs runtime evidence
 
 最终由用户决定；不自动进入生产使用。
 
+#### DF-S4A — Read-only Adoption Decision Design
+
+- Result: `Complete — read-only design`；
+- Classification: StS2Sim 对 Damage Forecast 为 `条件有用`；
+- Recommendation: 保留 game-neutral offline contracts、手写 fixtures、matrix
+  evaluator 和 explicit optional differential tool；不接入普通 guardrail、CI、
+  生产 DLL、HUD、安装或发布；
+- Not adopted: 不建立长期 external oracle，不让玩家路径调用 StS2Sim；
+- Evidence boundary: 当前 L2 足以支持维护者显式工具和 stable/Burn、beta/Doubt
+  两个 reviewed mapping 的版本/失败关闭检查，不足以支持完整 Forecast 语义或 L3
+  真实游戏声明；
+- Independence limit: provider 只证明固定 SS4 marker；完整 event/lane/amount/totals
+  仍由 adapter 的 reviewed mapping 生成，不能视为独立结构化 oracle；
+- Architectural follow-on: 已创建
+  [`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)，
+  候选审查 StS2Sim phase/order/interface seam 是否能帮助统一 Damage Forecast 当前分散
+  的触发链；
+- Authorization boundary: 新卡为 `Proposed / FTU-S0 Not Authorized`；创建和关联任务卡
+  不授权审查、实现、StS2Sim 调用、Git checkpoint、push、tag 或发布。
+
+#### DF-S4B — Documentation-only Adoption Decision Closure
+
+- Result: `Complete — parent task closed`；
+- Final classification: StS2Sim 对 Damage Forecast 为 `条件有用`；
+- Adopted disposition: 采用方案 3 的受限形态——保留 game-neutral offline
+  contracts、手写 fixtures、matrix evaluator 和 explicit optional differential tool，
+  只供维护者显式验证；
+- Partial disposition: 方案 2 只保留人工审核的离线 fixtures，不批准自动生成并覆盖
+  canonical baseline；
+- Rejected dispositions: 不把方案 1 作为唯一用途，不建立方案 4 长期 external oracle，
+  当前也不选择方案 5 完全移除；
+- Production boundary: 生产 DLL、Forecast Engine、HUD、普通 guardrail、CI、安装、
+  Workshop 和发布物均不依赖、探测或启动 StS2Sim；
+- Evidence boundary: stable/Burn、beta/Doubt、unknown fail-closed 和 same-seed repeat
+  仍是 L2/headless evidence，`RuntimeVerified=false`；不得外推完整 Forecast 或 L3；
+- Follow-on: 已将
+  [`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)
+  登记为 `Proposed / FTU-S0 Not Authorized`，用于未来重新审查分散触发链，以及
+  StS2Sim phase/order/interface seam 的 game-neutral 接入建议；
+- No new execution: 本 Gate 未调用 StS2Sim，未重跑 tests/build，未启动游戏；
+- Changed: 仅更新本任务卡、FTU 候选卡和 task-note index；
+- Preserved: 未修改源码、测试、scenario、fixture、adapter、tools、普通 guardrail、
+  HUD、设置、安装、游戏或 Workshop；
+- At Gate closure: DF-S4B 当时未暂存、未 commit、未 push、未 tag、未发布；该未提交
+  状态已由后续单独批准的 DF-S4C local checkpoint supersede；
+- Closure: 本 StS2Sim × Damage Forecast 利用评估任务到此关闭，不再自动产生后续
+  DF Gate。
+
+#### DF-S4C — Local Git Checkpoint
+
+- Result: `Complete — local checkpoint`；
+- Base HEAD before checkpoint:
+  `4d971fb41fe48240b3e7fc04f01b494784529dfc`
+  (`docs: record stable covering-screen L3 closure`)；
+- Committed scope: 本主任务卡的 DF-S4A/B/C 闭环、FTU 候选任务卡，以及
+  `docs/task-notes/README.md` 中仅 StS2Sim closed / FTU proposed 的登记 hunk；
+- Explicit exclusion: README 的 Feel No Pain 登记 hunk、Forecast Architecture
+  任务卡、Feel No Pain 任务卡、所有生产源码、测试、`Program.cs`、adapter、tools 和
+  其他并行改动均未进入 checkpoint；
+- Verification: staged path/diff audit 与 `git diff --cached --check` 通过；
+- No new execution: 未调用 StS2Sim，未运行 tests/build，未启动游戏；
+- Git boundary: local commit only；未 push、tag、发布或修改 remote；
+- Remaining worktree: Feel No Pain、Forecast Architecture 和其他并行改动保持未提交、
+  未覆盖；
+- Next: 只有用户单独批准后才能进入 FTU-S0；DF-S4C 不构成后续 Gate 授权。
+
 ---
 
 ## 5. 硬性边界
@@ -671,26 +739,14 @@ Needs runtime evidence
 
 ---
 
-## 7. 给专门 Session 的启动提示
+## 7. Closed task handoff
 
 ```text
-请完整阅读：
-C:\Users\ROG\Documents\Codex\STS2-Party-Watch-v2\docs\task-notes\sts2sim-damage-forecast-evaluation-master-task-card.md
+本任务已由 DF-S4B 关闭，不继续创建新的 DF Gate。
 
-只执行 DF-S4A read-only Adoption Decision Design；这不是 DF-S4 实现、接入或发布授权。
+如用户未来明确批准 FTU-S0，请改读：
+C:\Users\ROG\Documents\Codex\STS2-Party-Watch-v2\docs\task-notes\damage-forecast-timeline-api-unification-review-master-task-card.md
 
-以 DF-S2A commit 286fd56、DF-S2B commit 573baa6、DF-S3B/C 当前 working-tree
-implementation、DF-S3D explicit L2 evidence、固定 StS2Sim source revision
-42396191e4bd66ca8ab27cd9b9b9f4f537966978 和本卡 capability boundary 为依据，
-只读评估：
-
-- StS2Sim 对 Damage Forecast 是无用、参考、条件有用还是长期有用；
-- 哪些能力应保持 handwritten offline fixture，哪些可保留 explicit optional adapter；
-- 当前 L2 evidence 是否足以支持任何 adoption，哪些仍必须等待 L3 runtime evidence；
-- 维护成本、版本漂移、失败关闭和撤回条件；
-- DF-S4 未来最小候选 diff 与明确不采用项。
-
-不得修改源码、测试、scenario、fixture、adapter、tools、普通 guardrail、HUD、设置、
-安装、游戏或 Workshop；不得调用 StS2Sim；不得进行 Git 写操作。只输出 adoption
-recommendation、证据、风险、退出条件和未来最小候选 diff。
+FTU 是独立后续候选；本任务完成不构成 FTU-S0、实现、StS2Sim 调用、Git checkpoint、
+push、tag、发布、安装或游戏启动授权。
 ```
