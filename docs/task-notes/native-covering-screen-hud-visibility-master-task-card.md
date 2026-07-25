@@ -7,11 +7,11 @@
 ## Current Control
 
 State: `Closed`
-Last completed: `CV5 — Git Checkpoint`
-Next: `None within this task — stable L3 remains a documented target limitation`
+Last completed: `Stable L3 Evidence Addendum and local checkpoint`
+Next: `None within this task`
 Approved: `Yes — local Git checkpoint only; push, tag, and Workshop remain unapproved`
 Evidence: `§12`
-Repository: `Local checkpoint created by this commit; push, tag, and Workshop not executed`
+Repository: `Original checkpoint 7c31f9b plus stable L3 addendum by this commit; no push, tag, or Workshop update`
 
 ---
 
@@ -438,8 +438,8 @@ CV2 默认预算：
 
 ## 11. 下一批准边界
 
-本任务由 CV5 本地 Git checkpoint 收口，任务内没有下一 Gate。stable covering-screen
-L3 保持为已记录的目标限制，不因 beta L3 完成而被推定通过。
+本任务由 CV5 本地 Git checkpoint 和后续 stable L3 evidence addendum 收口，
+任务内没有下一 Gate。
 
 push、tag 或 Workshop 更新若未来需要，仍须独立批准；它们不属于本任务收口。
 
@@ -494,7 +494,7 @@ push、tag 或 Workshop 更新若未来需要，仍须独立批准；它们不�
 
 ### 12.5 CV4 — Matching-artifact Install and L3 Runtime Matrix
 
-- Result: `beta L3 Complete / stable L3 Pending`
+- Result: `beta L3 Complete`; stable L3 后续证据见 §12.7。
 - Plan: 当前游戏为 beta v0.109.0 (`c12f634d`)；安装前 active DLL SHA256 为
   `9600B23C85DB1AF7CFEDD75536CCA1FC2ECCC6455AD6C18C1AD6FF54AB25E44B`。
 - Install: beta matching artifact 已安装到 `mods/damage-forecast`；active DLL
@@ -521,17 +521,32 @@ push、tag 或 Workshop 更新若未来需要，仍须独立批准；它们不�
 - Preserved: 未修改 production / contract、未重新安装或启动游戏、未执行
   push、tag 或 Workshop 动作；并行 ExternalObservation、Feel No Pain 和其他任务
   文件未纳入 checkpoint。
-- Pending: stable covering-screen L3 仍为 Pending；这是已记录的目标限制，
-  不阻止当前 beta 修复任务收口。
+- Pending: 无本任务内验证项；push、tag 与 Workshop 仍不在本任务范围。
 
-### 12.7 最终收口
+### 12.7 Stable L3 Evidence Addendum
 
-Result: 地图、抽牌堆、弃牌堆与消耗牌堆在 beta matching artifact 下覆盖期间
-隐藏 HUD，关闭最后一个覆盖界面后立即恢复；普通战斗 HUD 保持显示。
+- Result: `stable L3 Complete`
+- Runtime: 用户在 stable v0.107.1 (`59260271`) 手动确认普通战斗、地图、
+  抽牌堆、弃牌堆和消耗牌堆的 hide / close / restore 矩阵全部成功。
+- Artifact: active `damage-forecast.dll` SHA256 为
+  `8BC96C07DB047F963940D1378A0257F101B886C949368F23F4FAD1C41B0CDF49`；
+  manifest SHA256 为
+  `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`。
+- Binding: 该 DLL 与当前 stable/beta guardrail 输出字节一致，且原覆盖修复
+  checkpoint `7c31f9b` 是当前 HEAD 的祖先。
+- Log: 最新日志标记 release v0.107.1，并从本地 `mods/damage-forecast`
+  唯一加载 manifest、DLL、initializer 和模组条目各 1 次；Damage Forecast
+  可归因 error / exception 为 0。
 
-Current state: stable/beta L1/L2 自动化通过；beta v0.109.0 L3 Complete；
-stable v0.107.1 L3 Pending。Workshop unchanged。
+### 12.8 最终收口
+
+Result: 地图、抽牌堆、弃牌堆与消耗牌堆在 stable 和 beta 的已绑定运行 artifact
+下覆盖期间隐藏 HUD，关闭最后一个覆盖界面后立即恢复；普通战斗 HUD 保持显示。
+
+Current state: stable/beta L1/L2 自动化通过；stable v0.107.1 与 beta v0.109.0
+均为 L3 Complete。Workshop unchanged。
 
 Authority: 本任务卡、`docs/project-state.md`、`docs/task-notes/README.md` 已同步。
 
-Repository: 本 commit 是本地 checkpoint；未执行 push、tag 或 Workshop 更新。
+Repository: 原实现 checkpoint 为 `7c31f9b`，本 commit 补充 stable L3 authority；
+未执行 push、tag 或 Workshop 更新。
