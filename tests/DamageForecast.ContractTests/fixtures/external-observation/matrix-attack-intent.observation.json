@@ -1,0 +1,35 @@
+{
+  "scenarioId": "enemy-turn.attack-intent.v1",
+  "status": "Unsupported",
+  "events": [],
+  "unsupported": [
+    {
+      "scope": "mechanism",
+      "reasonCode": "tool.unsupported.real-enemy-turn",
+      "providerMechanismId": "real-enemy-turns",
+      "detail": "AttackIntent observation requires a real enemy turn",
+      "failClosed": true
+    }
+  ],
+  "metadata": {
+    "schemaVersion": 1,
+    "providerId": "fixture-provider",
+    "providerVersion": "1.0.0",
+    "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
+    "sourceDirty": false,
+    "gameChannel": "stable",
+    "gameVersion": "v0.107.1",
+    "gameCommit": "59260271",
+    "gameAssemblySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "adapterVersion": "fixture-v1",
+    "providerArtifactSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "evidenceLevel": "L2",
+    "runtimeVerified": false,
+    "seed": 424242,
+    "runId": "matrix-attack-intent",
+    "generatedAtUtc": "2026-07-25T00:08:00Z",
+    "capabilityManifestSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "unsupportedRegistrySha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "rawProviderOutputHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

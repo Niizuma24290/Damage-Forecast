@@ -2,12 +2,12 @@
 
 ## Current Control
 
-State: `DF-S2 Complete / DF-S3 Not Authorized`
-Last completed: `DF-S2C Evidence Closure`
-Next: `DF-S3A read-only Differential Scenario Matrix Design only after separate approval`
-Approved: `No — DF-S3 is not authorized; DF-S2A / DF-S2B are complete`
-Evidence: `本卡 §4 DF-S0 / DF-S1 / DF-S2 增量证据`
-Repository: `Implementation and documentation checkpoints complete — DF-S2A 286fd56 / DF-S2B 573baa6 / DF-S2C this task-card commit`
+State: `DF-S3 Complete in working tree / DF-S4 Not Authorized`
+Last completed: `DF-S3E Evidence Closure`
+Next: `DF-S4A read-only Adoption Decision Design only after separate approval`
+Approved: `No — DF-S4 is not authorized; DF-S3A / DF-S3B / DF-S3C / DF-S3D are complete`
+Evidence: `本卡 §4 DF-S0 至 DF-S3 增量证据`
+Repository: `DF-S2A 286fd56 / DF-S2B 573baa6；DF-S3B/C 为当前 working-tree implementation，尚无 DF-S3 Git checkpoint`
 
 任务性质：Damage Forecast 独立的测试与验证能力评估。
 
@@ -487,6 +487,116 @@ Needs runtime evidence
 
 不允许看到 mismatch 就自动修改生产代码。
 
+#### DF-S3A — Read-only Differential Scenario Matrix Design
+
+- Result: `Complete — read-only design`；
+- Matrix boundary: 只有 reviewed stable/Burn、beta/Doubt，以及 adapter fail-closed /
+  same-seed health boundary 具备当前可比证据；
+- Tool unsupported: Current Block、Power/Relic Block order、direct HP loss、
+  Intangible / Tungsten Rod / Beating Remnant、Poison 和其他 Status/Curse；
+- Needs runtime evidence: discard / retain / Ethereal；
+- Expected version difference: 只能保留为 candidate；stable/Burn 与 beta/Doubt 是
+  不同场景，不能构成同场景跨版本差异；
+- Provider out of scope: HUD、安装、多人展示、Workshop 和 L3 live runtime；
+- No writes or execution: 本 Gate 未修改文件、未调用 StS2Sim、未执行 Git 写操作。
+
+#### DF-S3B — Offline Differential Matrix Manifest
+
+- Result: `Complete — working-tree implementation`；
+- Scope: 只在现有 `DamageForecast.ContractTests` 中新增静态 matrix fixture、game-neutral
+  DTO、validator 和离线 contract cases；
+- Manifest:
+  `tests/DamageForecast.ContractTests/fixtures/external-observation/differential-scenario-matrix.v1.json`；
+- Validator:
+  `tests/DamageForecast.ContractTests/DifferentialScenarioMatrixContract.cs`；
+- Cases: `DM-001` 至 `DM-010`；
+- Frozen boundary: exact provider revision `42396191...`、`sourceTree=clean`、
+  `RuntimeVerified=false`、禁止普通 guardrail 强依赖、禁止进程执行授权随 manifest
+  隐式扩张、禁止 mismatch 自动改生产代码；
+- Ready mappings: 只能是 stable/Burn 和 beta/Doubt；未知 contract reference、
+  未审查 Ready mapping 和 process permission 均 fail-closed；
+- Gate evidence: 当时 `308/308` contracts，Release 0 warning / 0 error；
+- Preserved: 未调用 StS2Sim，未扩展 adapter，未修改生产源码、普通 guardrail、HUD、
+  安装或 Workshop；未 commit、push 或发布。
+
+#### DF-S3C — Offline Matrix Evaluation
+
+- Result: `Complete — working-tree implementation`；
+- Evaluator:
+  `tests/DamageForecast.ContractTests/DifferentialScenarioMatrixEvaluator.cs`；
+- New handwritten pair:
+  `matrix-attack-intent.scenario.json` /
+  `matrix-attack-intent.observation.json`；
+- Cases: `DM-011` 至 `DM-017`，最终 `DM-001..DM-017 = 17/17`；
+- Evaluated Match:
+  stable/Burn semantic event and totals、beta/Doubt semantic event and totals、
+  unknown/unsupported fail-closed boundary、stable same-seed determinism；
+- Not evaluated: 其余 9 行保持 Blocked / Candidate / OutOfScope，不提升为 Match、
+  Tool suspect 或 Forecast suspect；
+- Missing fixture: 返回 `Invalid / fixture.notFound`，不回退调用外部进程；
+- Shared baseline: Feel No Pain 的阶段性 `BK-016` 冲突对齐后，完整 contracts
+  `336/336`，Release 0 warning / 0 error；
+- Preserved: 本 Gate 未调用 StS2Sim，未修改 adapter、生产源码、普通 guardrail、HUD、
+  安装或 Workshop。
+
+#### DF-S3D — Explicit Ready-row Differential Run
+
+- Result: `Complete — explicit L2 execution`；
+- Authority: provider exact clean
+  `42396191e4bd66ca8ab27cd9b9b9f4f537966978`；stable/beta game assembly SHA256
+  与 capability authority 精确一致；
+- Successful evidence root:
+  `work/forecast-external-observation/df-s3d-explicit-20260725-2`；
+- DFM-006 stable/Burn: `Match / Complete / Blockable 2`；
+- DFM-007 beta/Doubt: `Match / Complete / NonDamage 0`；
+- DFM-011 same-seed repeat: `Match`；两次 raw provider output SHA256 均为
+  `873a151286cd04c622f07721d7c3d76dee23aafb460dbc10b4e9ca64fcc9a585`，
+  且事件语义完全一致；
+- DFM-010 unknown/unsupported: `Match / Unsupported / failClosed=true /
+  adapter.unsupported-scenario`；
+- beta/Doubt raw provider output SHA256:
+  `d40038f27682a60c96268318f7231d1e953982e52cad35d6c4f7536a54c7dbac`；
+- unknown raw provider output SHA256:
+  `14f35d9e0402fc0ab8bed7cece4514cc8ae317817afa132c7a513c26e7a09f58`；
+- First attempt: `df-s3d-explicit-20260725-1` 错用不完整 reference snapshot，
+  adapter 正确返回结构化 `ProviderFailure / provider.nonzero-exit / exit 22`；
+  该失败保留为 fail-closed 证据，不参与 Match 结论；
+- Runtime directories used for successful run: stable 使用 SS7 隔离补全 headless
+  runtime；beta 使用当前 Steam beta data directory；两者 `sts2.dll` hash 均与
+  authority 匹配；
+- Evidence level: L2 only；所有结果 `RuntimeVerified=false`；未启动游戏或产生 L3
+  证据；
+- No version-difference claim: 没有执行同一 scenario 的 stable/beta 配对；
+- Preserved: 未扩展 adapter、未改代码、未接入普通 guardrail、未安装、发布、push
+  或启动游戏；执行后 provider 仍为 exact clean revision。
+
+#### DF-S3E — Evidence Closure
+
+- Result: `Complete — documentation-only closure`；
+- Authority: 本卡从 `DF-S2 Complete / DF-S3 Not Authorized` 更新为
+  `DF-S3 Complete in working tree / DF-S4 Not Authorized`；
+- Matrix conclusion:
+
+| Matrix group | Closure classification | Evidence boundary |
+|---|---|---|
+| current Block only | Tool unsupported | 无结构化 Block 观察 |
+| Power/Relic Block order | Tool unsupported | 无逐事件 Block order trace |
+| direct HP loss | Tool unsupported | 无 reviewed DirectHpLoss mapping |
+| Intangible / Tungsten Rod / Beating Remnant | Tool unsupported | Forecast contracts only |
+| Poison | Tool unsupported | provider real-enemy-turns unsupported |
+| Status/Curse turn-end | Partial Match | stable/Burn 与 beta/Doubt Match；其余 unsupported |
+| discard / retain / Ethereal | Needs runtime evidence | reference-only，无结构化 differential output |
+| unknown / unsupported | Match — boundary only | structured fail-closed |
+| same seed repeat | Match — health only | raw hash 与事件语义一致 |
+| stable/beta difference | Expected version difference candidate | 缺同场景跨目标配对 |
+| HUD / install / multiplayer / Workshop / L3 | Provider out of scope | 不属于当前 provider 证明范围 |
+
+- No new execution: 本 Gate 不重新调用 provider，不重跑 tests/build；
+- No repository checkpoint: DF-S3B/C/D 仍在当前共享 working tree，尚未 commit；
+- Preserved: 不修改源码、测试、tools、普通 guardrail、README、HUD、安装、游戏或
+  Workshop；不 push、不发布；
+- Next: 只有用户单独批准后才能进入 DF-S4A read-only Adoption Decision Design。
+
 ### DF-S4 — Adoption Decision
 
 比较：
@@ -542,19 +652,20 @@ Needs runtime evidence
 请完整阅读：
 C:\Users\ROG\Documents\Codex\STS2-Party-Watch-v2\docs\task-notes\sts2sim-damage-forecast-evaluation-master-task-card.md
 
-只执行 DF-S3A read-only Differential Scenario Matrix Design；这不是 DF-S3 实现授权。
+只执行 DF-S4A read-only Adoption Decision Design；这不是 DF-S4 实现、接入或发布授权。
 
-以 DF-S2A commit 286fd56、DF-S2B commit 573baa6、固定 StS2Sim source revision
-42396191e4bd66ca8ab27cd9b9b9f4f537966978 和本卡当前 capability boundary 为依据，
-逐项把最低矩阵分类为：
+以 DF-S2A commit 286fd56、DF-S2B commit 573baa6、DF-S3B/C 当前 working-tree
+implementation、DF-S3D explicit L2 evidence、固定 StS2Sim source revision
+42396191e4bd66ca8ab27cd9b9b9f4f537966978 和本卡 capability boundary 为依据，
+只读评估：
 
-Comparable
-Expected version difference candidate
-Tool unsupported
-Needs runtime evidence
-Provider out of scope
+- StS2Sim 对 Damage Forecast 是无用、参考、条件有用还是长期有用；
+- 哪些能力应保持 handwritten offline fixture，哪些可保留 explicit optional adapter；
+- 当前 L2 evidence 是否足以支持任何 adoption，哪些仍必须等待 L3 runtime evidence；
+- 维护成本、版本漂移、失败关闭和撤回条件；
+- DF-S4 未来最小候选 diff 与明确不采用项。
 
-不得新增或修改 scenario/fixture/adapter，不得调用 StS2Sim，不得修改生产源码、测试、
-tools、普通 guardrail、HUD、设置、安装、游戏或 Workshop，不得进行 Git 写操作。
-只输出 matrix、证据来源、blocking gaps 和未来最小候选 diff。
+不得修改源码、测试、scenario、fixture、adapter、tools、普通 guardrail、HUD、设置、
+安装、游戏或 Workshop；不得调用 StS2Sim；不得进行 Git 写操作。只输出 adoption
+recommendation、证据、风险、退出条件和未来最小候选 diff。
 ```

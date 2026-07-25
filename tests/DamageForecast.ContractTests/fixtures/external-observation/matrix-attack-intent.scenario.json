@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "enemy-turn.attack-intent.v1",
+  "targetChannel": "stable",
+  "seed": 424242,
+  "requestedCapabilities": [
+    "real-enemy-turns"
+  ],
+  "initialState": {
+    "playerHp": 50,
+    "playerBlock": 0
+  },
+  "orderedInputs": [],
+  "expectedEvidenceLevel": "L2"
+}
