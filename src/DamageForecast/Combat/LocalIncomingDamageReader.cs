@@ -162,9 +162,22 @@ public sealed class LocalIncomingDamageReader
             }
         }
 
-        if (HasVerifiedHpLossResultModifier(localCreature.Player, localCreature))
+        var futurePowerBlock = VerifiedEtherealExhaustBlockReader.Read(
+            localCreature.Player,
+            localCreature);
+        var hasHpLossResultModifier =
+            HasVerifiedHpLossResultModifier(localCreature.Player, localCreature);
+        if (hasHpLossResultModifier
+            || futurePowerBlock.State != EtherealExhaustBlockReadState.Known
+            || futurePowerBlock.Events.Count > 0)
         {
-            return ReadKnownWithHpLossResultModifiers(localCreature.Player, localCreature, enemyAttackEvents, foundDamage);
+            return ReadKnownWithOrderedEvents(
+                localCreature.Player,
+                localCreature,
+                enemyAttackEvents,
+                foundDamage,
+                futurePowerBlock,
+                hasHpLossResultModifier);
         }
 
         if (TryReadHandTurnEndDamage(localCreature.Player, localCreature, out var handTurnEndDamage))
@@ -327,6 +340,7 @@ public sealed class LocalIncomingDamageReader
 
         var powerBlock = 0;
         var relicBlock = 0;
+        var futurePowerBlockEvents = Array.Empty<UpcomingBlockEvent>();
 
         if (options.IncludePowerBlock || options.IncludeRelicBlock)
         {
@@ -336,9 +350,21 @@ public sealed class LocalIncomingDamageReader
                 return IncomingDamageDisplayRead.Unknown;
             }
 
-            if (options.IncludePowerBlock)
+            if (options.IncludePowerBlock
+                && events.Any(e =>
+                    e.DisplayLane == HpLossDisplayLane.Blockable
+                    && e.VerifiedHpLoss > 0))
             {
                 powerBlock = preAttackBlock.PowerBlock;
+                var futurePowerBlock = VerifiedEtherealExhaustBlockReader.Read(
+                    player,
+                    localCreature);
+                if (futurePowerBlock.State != EtherealExhaustBlockReadState.Known)
+                {
+                    return IncomingDamageDisplayRead.Unknown;
+                }
+
+                futurePowerBlockEvents = futurePowerBlock.Events.ToArray();
             }
 
             if (options.IncludeRelicBlock)
@@ -347,10 +373,17 @@ public sealed class LocalIncomingDamageReader
             }
         }
 
+        var availableBlock = new AvailableBlockInput(
+            localCreature.Block,
+            powerBlock,
+            relicBlock);
         var selectedBlock = HpLossEventPolicy.SelectBlock(
-            new AvailableBlockInput(localCreature.Block, powerBlock, relicBlock),
+            availableBlock,
             options);
-        var hpLossEvents = HpLossEventPolicy.ApplySelectedBlock(events, selectedBlock);
+        var hpLossEvents = HpLossEventPolicy.ApplySelectedBlock(
+            events,
+            selectedBlock,
+            futurePowerBlockEvents);
         if (options.IncludePowerHpLossModifiers || options.IncludeRelicHpLossModifiers)
         {
             var modified = VerifiedHpLossResultModifier.Apply(
@@ -399,11 +432,13 @@ public sealed class LocalIncomingDamageReader
             : IncomingDamageRead.Unknown;
     }
 
-    private static IncomingDamageRead ReadKnownWithHpLossResultModifiers(
+    private static IncomingDamageRead ReadKnownWithOrderedEvents(
         Player player,
         Creature localCreature,
         IReadOnlyList<BlockableFutureDamageEvent> enemyAttackEvents,
-        bool foundEnemyAttack)
+        bool foundEnemyAttack,
+        EtherealExhaustBlockRead futurePowerBlock,
+        bool applyHpLossResultModifiers)
     {
         if (!TryReadOrderedHandTurnEndEvents(player, localCreature, out var handEvents, out var handBlockableRaw))
         {
@@ -420,66 +455,73 @@ public sealed class LocalIncomingDamageReader
             return IncomingDamageRead.Hidden;
         }
 
-        var blockableRaw = handBlockableRaw + powerBlockableRaw + enemyAttackEvents.Sum(e => e.Amount);
-        var remainingBlock = localCreature.Block;
+        var blockableRaw = SaturatingAdd(
+            SaturatingAdd(handBlockableRaw, powerBlockableRaw),
+            enemyAttackEvents.Sum(e => Math.Max(0, e.Amount)));
+        var selectedBlock = Math.Max(0, localCreature.Block);
         if (blockableRaw > 0)
         {
+            if (futurePowerBlock.State != EtherealExhaustBlockReadState.Known)
+            {
+                return IncomingDamageRead.Unknown;
+            }
+
             var preAttackBlock = VerifiedPreAttackBlockReader.Read(player, localCreature);
             if (preAttackBlock.State != PreAttackBlockReadState.Known)
             {
                 return IncomingDamageRead.Unknown;
             }
 
-            remainingBlock += preAttackBlock.Block;
+            selectedBlock = SaturatingAdd(selectedBlock, preAttackBlock.Block);
         }
 
-        var hpLossEvents = new List<UpcomingHpLossEvent>(handEvents.Count + enemyAttackEvents.Count);
+        var sourceEvents = new List<UpcomingHpLossEvent>(
+            handEvents.Count + powerEvents.Count + enemyAttackEvents.Count);
         foreach (var handEvent in handEvents)
         {
-            if (handEvent.DisplayLane == HpLossDisplayLane.Blockable)
-            {
-                var hpLoss = Math.Max(0, handEvent.Amount - remainingBlock);
-                remainingBlock = Math.Max(0, remainingBlock - handEvent.Amount);
-                hpLossEvents.Add(new UpcomingHpLossEvent(
-                    handEvent.Source,
-                    handEvent.NativeExecutionOrder,
-                    HpLossDisplayLane.Blockable,
-                    hpLoss,
-                    handEvent.IsSingleVerifiedEvent));
-            }
-            else
-            {
-                hpLossEvents.Add(new UpcomingHpLossEvent(
-                    handEvent.Source,
-                    handEvent.NativeExecutionOrder,
-                    HpLossDisplayLane.DirectHpLoss,
-                    handEvent.Amount,
-                    handEvent.IsSingleVerifiedEvent));
-            }
+            sourceEvents.Add(new UpcomingHpLossEvent(
+                handEvent.Source,
+                handEvent.NativeExecutionOrder,
+                handEvent.DisplayLane,
+                handEvent.Amount,
+                handEvent.IsSingleVerifiedEvent));
         }
 
         foreach (var powerEvent in powerEvents)
         {
-            var hpLoss = Math.Max(0, powerEvent.Amount - remainingBlock);
-            remainingBlock = Math.Max(0, remainingBlock - powerEvent.Amount);
-            hpLossEvents.Add(new UpcomingHpLossEvent(
+            sourceEvents.Add(new UpcomingHpLossEvent(
                 powerEvent.Source,
                 powerEvent.NativeExecutionOrder,
                 HpLossDisplayLane.Blockable,
-                hpLoss,
+                powerEvent.Amount,
                 powerEvent.IsSingleVerifiedEvent));
         }
 
         foreach (var enemyEvent in enemyAttackEvents)
         {
-            var hpLoss = Math.Max(0, enemyEvent.Amount - remainingBlock);
-            remainingBlock = Math.Max(0, remainingBlock - enemyEvent.Amount);
-            hpLossEvents.Add(new UpcomingHpLossEvent(
+            sourceEvents.Add(new UpcomingHpLossEvent(
                 enemyEvent.Source,
                 enemyEvent.NativeExecutionOrder,
                 HpLossDisplayLane.Blockable,
-                hpLoss,
+                enemyEvent.Amount,
                 enemyEvent.IsSingleVerifiedEvent));
+        }
+
+        var hpLossEvents = HpLossEventPolicy.ApplySelectedBlock(
+            sourceEvents,
+            selectedBlock,
+            futurePowerBlock.State == EtherealExhaustBlockReadState.Known
+                ? futurePowerBlock.Events
+                : Array.Empty<UpcomingBlockEvent>());
+        if (!applyHpLossResultModifiers)
+        {
+            var blockableHpLoss = hpLossEvents
+                .Where(e => e.DisplayLane == HpLossDisplayLane.Blockable)
+                .Sum(e => Math.Max(0, e.VerifiedHpLoss));
+            var directHpLoss = hpLossEvents
+                .Where(e => e.DisplayLane == HpLossDisplayLane.DirectHpLoss)
+                .Sum(e => Math.Max(0, e.VerifiedHpLoss));
+            return IncomingDamageRead.Known(blockableHpLoss, 0, directHpLoss);
         }
 
         var modified = VerifiedHpLossResultModifier.Apply(
@@ -605,10 +647,12 @@ public sealed class LocalIncomingDamageReader
             for (var i = 0; i < handPile.Cards.Count; i++)
             {
                 var card = handPile.Cards[i];
+                var nativeExecutionOrder =
+                    VerifiedEtherealExhaustBlockReader.GetHandTurnEndEffectOrder(i);
                 var hasVerifiedDirectHpLoss = VerifiedFixedTurnEndHpLossReader.TryReadEvent(
                     card,
                     handCount,
-                    i,
+                    nativeExecutionOrder,
                     out var directHpLossEvent);
                 var genericAccepted = false;
                 DamageVar? damageVar = null;
@@ -631,8 +675,13 @@ public sealed class LocalIncomingDamageReader
                 if (classification == HandCardDamageClassification.VerifiedBlockable)
                 {
                     var damage = GetModifiedIncomingCardDamage(player, localCreature, card, damageVar!);
-                    blockableRaw += damage;
-                    events.Add(new HandTurnEndHpLossEvent(card.GetType().Name, i, HpLossDisplayLane.Blockable, damage, true));
+                    blockableRaw = SaturatingAdd(blockableRaw, damage);
+                    events.Add(new HandTurnEndHpLossEvent(
+                        card.GetType().Name,
+                        nativeExecutionOrder,
+                        HpLossDisplayLane.Blockable,
+                        damage,
+                        true));
                 }
                 else if (classification == HandCardDamageClassification.VerifiedDirect)
                 {
@@ -724,6 +773,13 @@ public sealed class LocalIncomingDamageReader
             CardPreviewMode.None);
 
         return Math.Max(0, (int)modified);
+    }
+
+    private static int SaturatingAdd(int left, int right)
+    {
+        return (int)Math.Min(
+            int.MaxValue,
+            (long)Math.Max(0, left) + Math.Max(0, right));
     }
 
     private readonly record struct HandTurnEndHpLossEvent(

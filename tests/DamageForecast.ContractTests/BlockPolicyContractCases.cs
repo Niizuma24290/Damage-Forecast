@@ -96,7 +96,26 @@ internal static class BlockPolicyContractCases
                         [Event("negative", 0, HpLossDisplayLane.Blockable, -4), Event("positive", 1, HpLossDisplayLane.Blockable, 5)],
                         3);
                     AssertEvents(assert, actual, ("negative", 0), ("positive", 2));
-                })
+                }),
+            new ContractCase(
+                "BK-015",
+                "BlockPolicy",
+                "BlockConsumption.FutureBlockUsesNativeOrder",
+                assert =>
+                {
+                    var actual = HpLossEventPolicy.ApplySelectedBlock(
+                        [Event("earlier", 0, HpLossDisplayLane.Blockable, 5), Event("later", 2, HpLossDisplayLane.Blockable, 5)],
+                        0,
+                        [new UpcomingBlockEvent("FeelNoPain", 1, 3)]);
+                    AssertEvents(assert, actual, ("earlier", 5), ("later", 2));
+                }),
+            new ContractCase(
+                "BK-016",
+                "BlockPolicy",
+                "BlockConsumption.ProductionReader_UsesDoubledHandOrder",
+                assert => assert.Equal(
+                    8,
+                    VerifiedEtherealExhaustBlockReader.GetHandTurnEndEffectOrder(4)))
         ]);
 
         return cases;
