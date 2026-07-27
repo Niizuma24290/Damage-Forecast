@@ -10,13 +10,13 @@ Depends on: 血条/HUD 源码编辑已停止；替换前必须确认本仓库 Co
 
 ## Current Control
 
-Classification: PROPOSED_TASK
-State: Proposed / Authorized for bounded CC execution
-Last completed: Codex read-only diagnosis and CC handoff preparation
-Next: CG-0R — 检查、可恢复干净重建与验证
-Approved: Yes — 用户已明确授权 Claude Code 检查并重建当前 CodeGraph；授权仅覆盖 CG-0R
-Evidence: 本卡“当前已确认事实”
-Repository: Registered / execution not started / no Git checkpoint
+Classification: CLOSED_TASK
+State: Closed
+Last completed: CG-0R 干净重建、临时备份清理、Codex 独立只读复验与仓库收口
+Next: None — 本任务已关闭；架构、血条/HUD 与其他产品任务保持独立
+Approved: No further Gate
+Evidence: 本卡“CG-0R 执行回填”与“最终收口记录”
+Repository: `878bd3d` 记录 CG-0R 任务卡；包含本记录的后续 docs-only commit 为最终收口 checkpoint
 
 ## Goal
 
@@ -188,28 +188,42 @@ Indexed files/nodes/edges: 105 files / 2,068 nodes / 8,292 edges (was 21 / 356 /
 Old-path queries: src/STS2PartyWatchCode and tests/STS2PartyWatchCode no longer return any indexed nodes (files output grep clean)
 Current-path queries: ForecastRefreshPatch, DamageForecastHudDisplay, DamageForecastHudSurfacePolicy, DamageForecastBaseLibConfig, LocalIncomingDamageReader, ForecastTimelineShadowComparer, HudNodeOwnershipContractCases all resolve to current src/DamageForecast or tests/DamageForecast.ContractTests paths; ForecastTimeline resolves to current Forecast/Timeline symbols (no exact class named ForecastTimeline exists on disk — expected, matched Reducer/Validator)
 Representative relationship checks: callers(LocalIncomingDamageReader) -> ForecastRefreshPatch.cs:31; callees(ForecastRefreshPatch) -> DamageForecastUiSettings + RefreshRegisteredBars — consistent with current source
-Repository files changed: none; product/test/script dirty set identical to pre-rebuild (only .codegraph.bak-20260727_2335/ added as untracked, the recoverable backup)
-Temporary backup: .codegraph.bak-20260727_2335/ (inside repo root, contains .gitignore + codegraph.db; kept until user decides)
+Repository files changed by rebuild: none; product/test/script dirty set identical to pre-rebuild
+Temporary backup: .codegraph.bak-20260727_2335/ was deleted after successful validation; no .codegraph.bak-* remains
 Remaining limitations: ForecastTimeline has no exact-named node on disk (matches ForecastTimelineReducer/Validator instead) — not a defect, reflects current source naming; new .codegraph/.gitignore uses the "*" + "!.gitignore" rule which strictly subsumes the old *.db/*.db-wal/*.db-shm/cache/*.log/.dirty rules
-Recommended next action: user decides fate of .codegraph.bak-20260727_2335/ (keep until verified by Codex/CC reads, then delete) and whether to Git checkpoint this task card; no product/Git action taken
+Recommended next action: none for CG-0R; future architecture or HUD work must use its own task authorization
 ```
 
-本任务最多收口为 `Work Complete / Checkpoint Pending`，直到任务卡记录获得后续
-Git checkpoint。CodeGraph 本身是 ignored local cache，不进入 Git checkpoint。
+CodeGraph 本身是 ignored local cache，不进入 Git checkpoint。
 
 ---
 
 ## CG-0R 执行回填（Claude Code，2026-07-27）
 
 - 重建方式：可恢复干净重建（整目录改名备份 + 仓库根 `init --verbose`）。
-- 备份：`.codegraph.bak-20260727_2335/`，未删除，可一键回滚（`mv` 还原）。
+- 备份：`.codegraph.bak-20260727_2335/` 在验证通过后已删除；当前仓库根不存在
+  `.codegraph.bak-*`。
 - 写入者确认：重建前 CodeGraph writer 已全部退出（关 Codex 后无 `codegraph serve` 进程，db mtime 静止 20+ 分钟）。
-- 未修改任何产品/测试/脚本 dirty changes；未执行 Git 操作；未构建/测试/启动游戏。
+- 重建过程未修改任何产品/测试/脚本 dirty changes，未执行 Git 操作，也未构建、
+  测试或启动游戏。
 - 新旧 `.codegraph/.gitignore` 已对比：新规则 `*` + `!.gitignore` 覆盖并强于旧规则，直接保留，无需补回。
 - 仓库根 `.gitignore:20` 仍忽略 `.codegraph/`；新 `.codegraph` 未进入 Git 跟踪候选。
+- 临时检查脚本 `cg-probe.ps1` 已清理。
+- 用户随后授权仓库收口；`878bd3d` 只新增本任务卡，未纳入其他 dirty changes。
 
 ---
 
-给 Claude Code 的启动语：
+## 最终收口记录（Codex 复验，2026-07-27）
 
-> 读取 `docs/task-notes/codegraph-index-clean-rebuild-master-task-card.md`。用户已停止血条/HUD 编辑，并已授权本卡 CG-0R。先完成 Entry checks；只有在精确确认本仓库 CodeGraph 写入者已停止、目标路径安全且可回滚后，才执行可恢复的干净重建。验证完成后回填本卡并停止，不得修改产品代码、构建、安装、启动游戏或执行 Git 操作。
+Result: 当前仓库 CodeGraph 已完成干净重建，旧源码路径残留已清除，当前符号和
+代表性调用关系可正常查询。
+
+Current state: `status --json` 为 `state=complete`、`reindexRecommended=false`，
+共 `105 files / 2,068 nodes / 8,292 edges`，无 pending changes 或 worktree
+mismatch；临时备份和 `cg-probe.ps1` 均已清理。未执行构建、测试、安装或游戏启动。
+
+Authority: 本任务卡记录 CG-0R 的范围、执行证据和最终状态；CodeGraph 只作为本地
+导航缓存，不取代源码、任务索引或项目 Authority。
+
+Repository: `878bd3d` 只新增本任务卡；包含本最终收口记录的后续 docs-only commit
+是本任务最终 checkpoint。其他产品、测试、脚本和未跟踪 dirty changes 均未纳入。
