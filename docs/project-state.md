@@ -1,6 +1,6 @@
 # Project State
 
-Last reconciled: 2026-07-25
+Last reconciled: 2026-07-31
 
 ## Product Naming
 
@@ -29,14 +29,16 @@ Damage Forecast does not simulate a full turn, does not call real damage or comm
 - Default HUD line: total expected HP loss `-N`.
 - Phase 13A adds optional incoming damage `N`, disabled by default. `N` is a separate display value and does not change the existing `-N` calculation.
 - Damage display modes are `ExpectedHpLossOnly` (default), `IncomingDamageOnly`, and `Both`.
-- When both values are shown, `N` can be placed left or right of `-N`; the existing `-N` label remains the anchor when it is visible.
+- `-N`、`N` 与护盾/生命损失明细组各自拥有独立的五值 placement：血条左侧、血条右侧、人物上方、血条下方、结束回合按钮上方；同一 placement 内仍由 `IncomingDamagePlacement` 决定 `N` / `-N` 的先后。
 - Incoming damage `N` can optionally include current Block, Power/Orb pre-attack Block, relic pre-attack Block, Power HP-loss result modifiers, and relic HP-loss result modifiers.
 - Advanced details: optional `🛡 N` and `♥ N`, disabled by default.
 - `🛡 N`: trusted final blockable HP loss after verified block and supported HP-loss result modifiers.
 - `♥ N`: trusted direct HP loss that does not go through Block.
 - Unknown, unsupported, non-combat, zero-output, hidden UI, or untrusted partial values are hidden rather than guessed.
 - HUD refreshes from health-bar lifecycle hooks, hand pile changes, relic add/remove/melt, selected turn lifecycle hooks, and settings changes.
-- `FreezeHudWithinPlayerTurn` is enabled by default. It freezes a display snapshot within the player turn and commits a final snapshot through the compatible turn-end hook surface: `Hook.BeforeTurnEnd` on stable v0.107.1 or `Hook.BeforeSideTurnEnd` on the current frozen beta v0.109.0 capability surface; it does not alter forecast mechanics.
+- 结束回合冻结固定启用且不再显示设置开关。点击结束回合时保存最后有效 live snapshot 与可见 HUD 位置；按钮退场后冻结层保持数值和位置，取消点击、下一玩家回合或战斗结束时恢复/清理，不改变预测机制。
+- 血条侧 HUD 作为本地 `NHealthBar` 子节点跟随角色血条。人物上方 placement 对普通角色使用随原生缩放变化的头部语义点，对储君使用椅子顶部；人物下方 placement 在 Buff 行发生遮挡时按实际 Buff 行高下移。
+- 结束回合按钮上方 placement 的活动层直属当前 `NEndTurnButton`，冻结层位于本地 `NCombatUi`；可见 cluster 围绕按钮原生文字/图框中线排列。该路径的持续显示、防闪烁、视觉居中与点击后冻结已由用户在 v0.110.0 验证。
 - Known native covering pages hide the HUD only while at least one covering screen remains open and preserve the committed forecast snapshot for immediate restore. Map and `NCardPileScreen` paths cover the map, draw pile, discard pile, and exhaust pile; this matrix is RuntimeVerified on stable v0.107.1 and beta v0.109.0. Combat end, invalid player state, or disabled HUD settings still clear the relevant display state.
 - The temporary local health-bar center guide, HUD text center guide, and alignment runtime log have been removed after the alignment observation task.
 - Default `HealthBarRight` HUD placement now centers the main HUD label on the same local health-bar center line used by the temporary guide. User X/Y offsets still apply after the default position is calculated.
@@ -308,9 +310,9 @@ Known Phase 12B limitations:
 
 - Active identity: `Damage Forecast` / `damage-forecast` / `DamageForecast`.
 - Active assembly, DLL stem, manifest ID/stem, install directory, BaseLib registration key, Harmony owner, namespace, and primary diagnostic prefix are aligned with the new identity.
-- Current config identity is `DamageForecast.Settings.DamageForecastBaseLibConfig` / `DamageForecast.cfg`; all 18 ordered settings survived first migration, setting write/restart, reverse-sync rollback, old-version read, re-upgrade, and final restart.
+- Current config identity is `DamageForecast.Settings.DamageForecastBaseLibConfig` / `DamageForecast.cfg`; strict V2 contains 20 ordered keys with three independent placement values and fixed freeze. Strict V1's 18 keys migrate transactionally to V2; rollback is allowed only when all three placements can be represented losslessly by the legacy anchor.
 - The compatibility subsystem under `src/DamageForecast/Compatibility/` owns the legacy migration source descriptors and direct schema graph. Ordinary Settings/UI/Combat/Forecast/Patches code contains no legacy config key, file, or Mod ID literal.
-- Current local install runs on beta v0.109.0 at `mods/damage-forecast`, with DLL SHA256 `8BC96C07DB047F963940D1378A0257F101B886C949368F23F4FAD1C41B0CDF49` and manifest SHA256 `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`; the same DLL bytes are present in the current stable and beta guardrail outputs.
+- Current local install is the RuntimeVerified I2-R10 build on v0.110.0 at `mods/damage-forecast`, with DLL SHA256 `3A7240BF22293B4F64EAADAA7BF720DCECC449A54AF515EE9029E64F41B19270` and manifest SHA256 `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`; the active tree is strictly the two manifest/DLL files.
 - Runtime depth: stable v0.107.1 full migration/rollback/re-upgrade matrix PASS; beta v0.109.0 matching-artifact, config continuity, one-load/one-page/one-HUD smoke PASS; the prior stable matching artifact passed the damaging Status/Curse hand matrix, supported/direct combinations, and Block/no-Block scenes with a fresh one-load/no-attributable-error log. The native covering-screen fix is RuntimeVerified on both stable and beta for ordinary combat, map, draw pile, discard pile, and exhaust pile with immediate restore after close. Feel No Pain L3-01–12 has aggregate cross-target coverage: stable passed L3-01–09/L3-11/L3-12, beta passed L3-10; this is not a single-target complete matrix.
 - Workshop identity remains external and unchanged; repository-root rename remains unperformed.
 - The former damage-dealing Status/Curse hand-card HUD-hidden defect is fixed and RuntimeVerified for Burn, Toxic, Decay, Infection, Wither, a representative verified-direct card, non-damaging Status/Curse, supported-card combinations, and Block/no-Block scenes. Support is structural and fail-closed, not an unrestricted future-card or Mod-card compatibility claim.
