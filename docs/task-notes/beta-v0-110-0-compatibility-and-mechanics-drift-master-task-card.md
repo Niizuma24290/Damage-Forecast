@@ -12,14 +12,14 @@ Depends on: B110-0 合同与构建前确认当前 HUD Session 已停止源码/�
 ## Current Control
 
 Classification: CHECKPOINT_TASK
-State: Work Complete / B110-4 Checkpoint Pending
-Last completed: B110-3C — Unannounced Public-Beta Build Provenance Correction
-Next: B110-4 — Authority Sync And Local Git Checkpoint
+State: Closed
+Last completed: B110-4 — Authority Sync And Local Git Checkpoint
+Next: None / Monitor official hotfix notes or a later public-beta build as a new task
 Approved: B110-0、B110-1、B110-2、B110-3、B110-3C、B110-4
 Evidence: 本卡 `B110-0 Audit Checkpoint — 2026-07-31`、`B110-1 Checkpoint — 2026-07-31`、
 `B110-2 Checkpoint — 2026-07-31`、`B110-3 Checkpoint — 2026-07-31`、
-`B110-3C Checkpoint — 2026-07-31`
-Repository: Verification Complete / Checkpoint Pending
+`B110-3C Checkpoint — 2026-07-31`、`B110-4 Closure — 2026-08-01`
+Repository: Closed / Implementation Checkpoint `bb99210` / Closure Checkpoint This Commit
 
 ## Goal
 
@@ -352,7 +352,7 @@ Corrected conclusion:
 
 ## Gate B110-4 — Authority Sync And Local Git Checkpoint
 
-Status: In Progress / Checkpoint Preparation
+Status: Complete / Checkpointed
 
 Goal: 在 HUD I3 完成独立 checkpoint 后，复核共享 dirty tree，只同步 B110 当前事实并为
 B110 自有脚本、测试、Authority 与本卡创建可追溯本地 Git checkpoint。
@@ -379,6 +379,24 @@ Stop: 不暂存 Timeline/Architecture、候选任务卡、产品源码或其他�
 - Boundary: Timeline/Architecture task cards、Timeline 产品/合同文件、其他候选任务卡、
   `task-closure-standard.md` 与个人 `.agents/.obsidian/canvas` 内容均不属于 B110，
   保持 unstaged。README 只在最终 closure commit 暂存 B110 自身路由 hunk。
+
+### B110-4 Closure — 2026-08-01
+
+Result: v0.110.0 程序集/API/依赖/机制审计、受影响 Authority 更新与 Sentry guardrail
+closure 已完成；未公告 public-beta BuildID `24489008` 的精确 delta 也已审计并完成来源勘误。
+
+Current state: frozen `v0.110.0 / eecc8c4d` 保持 current authority；当前共享 worktree
+candidate 在 stable、frozen beta、frozen current 三目标均为 `482/482 PASS` 和
+Release `0 warning / 0 error`。
+B110 不声明 broad runtime verification；HUD I2-R10 只验证用户实际测试的 HUD 场景。
+
+Authority: 本卡为唯一任务进度权威；当前产品/环境/机制事实已同步到
+`docs/project-state.md`、`docs/build-environment.md`、`docs/mechanics-evidence.md`，
+README 只登记关闭路由。
+
+Repository: implementation checkpoint `bb99210` 只包含 B110 的 7 个文件/自有 hunk；
+本次 docs-only closure commit 只包含本卡与 README 的 B110 路由 hunk。其余共享 dirty tree
+保持 unstaged。Push、tag、Workshop、release、安装与游戏启动均为 Out of Scope / Unchanged。
 
 ## Completion and closure requirements
 
