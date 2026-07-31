@@ -12,9 +12,19 @@ internal static class HudSnapshotLifecyclePolicy
         HudSnapshotOwnerIdentity owner)
     {
         state = ForOwner(state, owner);
+        if (state.HasPlayerEndedTurn)
+        {
+            return state;
+        }
+
+        var accepted = state.PendingGeneration is not null
+            ? state.PendingSnapshot
+            : state.LatestLiveSnapshot;
         return state with
         {
-            CommittedSnapshot = state.LatestLiveSnapshot,
+            CommittedSnapshot = accepted,
+            PendingSnapshot = null,
+            PendingGeneration = null,
             HasPlayerEndedTurn = true
         };
     }
@@ -26,13 +36,74 @@ internal static class HudSnapshotLifecyclePolicy
         bool isDisplayable)
     {
         state = ForOwner(state, owner);
-        ForecastHudSnapshot? accepted = isDisplayable ? latest : null;
+        if (state.HasPlayerEndedTurn)
+        {
+            return state;
+        }
+
+        var accepted = state.PendingGeneration is not null
+            ? state.PendingSnapshot
+            : isDisplayable
+                ? latest
+                : state.LatestLiveSnapshot;
         return state with
         {
-            LatestLiveSnapshot = accepted,
+            LatestLiveSnapshot = isDisplayable ? latest : state.LatestLiveSnapshot,
             CommittedSnapshot = accepted,
+            PendingSnapshot = null,
+            PendingGeneration = null,
             HasPlayerEndedTurn = true
         };
+    }
+
+    public static HudSnapshotLifecycleState PrepareEndTurn(
+        HudSnapshotLifecycleState state,
+        HudSnapshotOwnerIdentity owner,
+        long generation)
+    {
+        state = ForOwner(state, owner);
+        return state.HasPlayerEndedTurn
+            ? state
+            : state with
+            {
+                PendingSnapshot = state.LatestLiveSnapshot,
+                PendingGeneration = generation
+            };
+    }
+
+    public static HudSnapshotLifecycleState ConfirmEndTurn(
+        HudSnapshotLifecycleState state,
+        HudSnapshotOwnerIdentity owner,
+        long generation)
+    {
+        state = ForOwner(state, owner);
+        if (state.HasPlayerEndedTurn || state.PendingGeneration != generation)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            CommittedSnapshot = state.PendingSnapshot,
+            PendingSnapshot = null,
+            PendingGeneration = null,
+            HasPlayerEndedTurn = true
+        };
+    }
+
+    public static HudSnapshotLifecycleState CancelEndTurn(
+        HudSnapshotLifecycleState state,
+        HudSnapshotOwnerIdentity owner,
+        long generation)
+    {
+        state = ForOwner(state, owner);
+        return state.HasPlayerEndedTurn || state.PendingGeneration != generation
+            ? state
+            : state with
+            {
+                PendingSnapshot = null,
+                PendingGeneration = null
+            };
     }
 
     public static HudSnapshotResolution ResolveDisplay(
@@ -53,7 +124,12 @@ internal static class HudSnapshotLifecyclePolicy
             return new(state, state.CommittedSnapshot ?? ForecastHudSnapshot.Hidden);
         }
 
-        state = state with { LatestLiveSnapshot = isDisplayable ? latest : null };
+        state = state with
+        {
+            LatestLiveSnapshot = isDisplayable
+                ? latest
+                : state.LatestLiveSnapshot
+        };
         return new(state, isDisplayable ? latest : ForecastHudSnapshot.Hidden);
     }
 
@@ -97,9 +173,12 @@ internal readonly record struct HudSnapshotLifecycleState(
     HudSnapshotOwnerIdentity? Owner,
     ForecastHudSnapshot? LatestLiveSnapshot,
     ForecastHudSnapshot? CommittedSnapshot,
+    ForecastHudSnapshot? PendingSnapshot,
+    long? PendingGeneration,
     bool HasPlayerEndedTurn)
 {
-    public static HudSnapshotLifecycleState Empty => new(null, null, null, false);
+    public static HudSnapshotLifecycleState Empty =>
+        new(null, null, null, null, null, false);
 }
 
 internal readonly record struct HudSnapshotResolution(

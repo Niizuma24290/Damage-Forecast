@@ -19,6 +19,30 @@ internal static class DamageForecastHudSnapshotStore
         _state = HudSnapshotLifecyclePolicy.CommitLatest(_state, IdentityOf(player, creature));
     }
 
+    public static void PrepareEndTurn(Player player, Creature creature, long generation)
+    {
+        _state = HudSnapshotLifecyclePolicy.PrepareEndTurn(
+            _state,
+            IdentityOf(player, creature),
+            generation);
+    }
+
+    public static void ConfirmEndTurn(Player player, Creature creature, long generation)
+    {
+        _state = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
+            _state,
+            IdentityOf(player, creature),
+            generation);
+    }
+
+    public static void CancelEndTurn(Player player, Creature creature, long generation)
+    {
+        _state = HudSnapshotLifecyclePolicy.CancelEndTurn(
+            _state,
+            IdentityOf(player, creature),
+            generation);
+    }
+
     public static void OnPlayerTurnEnding(Player player, Creature creature, ForecastHudSnapshot latest)
     {
         _state = HudSnapshotLifecyclePolicy.Commit(

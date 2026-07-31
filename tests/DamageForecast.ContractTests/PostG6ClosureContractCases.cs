@@ -80,7 +80,10 @@ internal static class PostG6ClosureContractCases
                     .Select(Path.GetFileName)
                     .Order(StringComparer.Ordinal)
                     .ToArray();
-                var expectedFiles = contract.CompatibilityFiles.Order(StringComparer.Ordinal).ToArray();
+                var expectedFiles = contract.CompatibilityFiles
+                    .Append("HudPlacementConfigFileMigration.cs")
+                    .Order(StringComparer.Ordinal)
+                    .ToArray();
                 var namespaceErrors = Directory.EnumerateFiles(compatibilityRoot, "*.cs", SearchOption.TopDirectoryOnly)
                     .Where(path => !File.ReadAllText(path).Contains(
                         "namespace DamageForecast.Compatibility;",

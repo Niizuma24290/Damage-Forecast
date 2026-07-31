@@ -17,6 +17,16 @@ internal static class CompatibilityBootstrap
                 var completed = FindCompletedMarker(options);
                 if (completed is not null)
                 {
+                    if (HudPlacementConfigFileMigration.IsStrictV2(currentBytes))
+                    {
+                        return new ConfigMigrationResult(
+                            ConfigMigrationGrade.ExactSuccess,
+                            ConfigMigrationStatus.AlreadyCompleted,
+                            MayRegisterCurrentConfig: true,
+                            "Completed identity migration lineage and strict HUD placement V2 config are valid.",
+                            completed);
+                    }
+
                     var currentValidation = ConfigSchemaDetector.Validate(
                         currentBytes,
                         DamageForecastSchemaV1.Descriptor);
@@ -40,6 +50,23 @@ internal static class CompatibilityBootstrap
                     ConfigMigrationStatus.FreshInstall,
                     MayRegisterCurrentConfig: true,
                     "No legacy or current config exists; BaseLib may create the current defaults.");
+            }
+
+            if (currentExists
+                && HudPlacementConfigFileMigration.IsStrictV2(
+                    File.ReadAllBytes(options.CurrentConfigPath)))
+            {
+                return legacyExists
+                    ? new ConfigMigrationResult(
+                        ConfigMigrationGrade.FailedSafe,
+                        ConfigMigrationStatus.Conflict,
+                        MayRegisterCurrentConfig: false,
+                        "Legacy identity config and HUD placement V2 current config coexist without completed lineage.")
+                    : new ConfigMigrationResult(
+                        ConfigMigrationGrade.ExactSuccess,
+                        ConfigMigrationStatus.ExistingCurrent,
+                        MayRegisterCurrentConfig: true,
+                        "A strict HUD placement V2 current config exists without a legacy source.");
             }
 
             ConfigValidationResult? legacy = null;
@@ -126,8 +153,20 @@ internal static class CompatibilityBootstrap
             {
                 return Failed("reverse sync requires both current and legacy configs");
             }
+            var currentSourceBytes = File.ReadAllBytes(options.CurrentConfigPath);
+            var currentBytes = currentSourceBytes;
+            var currentWasV2 = HudPlacementConfigFileMigration.IsStrictV2(currentBytes);
+            if (currentWasV2
+                && !HudPlacementConfigFileMigration.TryCreateRollbackV1(
+                    currentBytes,
+                    out currentBytes,
+                    out var rollbackMessage))
+            {
+                return Failed(rollbackMessage);
+            }
+
             var current = ConfigSchemaDetector.Validate(
-                File.ReadAllBytes(options.CurrentConfigPath),
+                currentBytes,
                 DamageForecastSchemaV1.Descriptor);
             var legacy = ConfigSchemaDetector.Validate(
                 File.ReadAllBytes(options.LegacyConfigPath),
@@ -140,9 +179,33 @@ internal static class CompatibilityBootstrap
             {
                 return ValidationFailure("legacy config is not safe to replace", legacy);
             }
+            if (currentWasV2)
+            {
+                using var document = JsonDocument.Parse(currentSourceBytes);
+                var orderedKeys = document.RootElement.EnumerateObject()
+                    .Select(property => property.Name)
+                    .ToArray();
+                current = current with
+                {
+                    Metadata = current.Metadata with
+                    {
+                        Length = currentSourceBytes.LongLength,
+                        Sha256 = ConfigDigest.Sha256(currentSourceBytes),
+                        OrderedKeyDigest = ConfigDigest.Sha256(string.Join("\n", orderedKeys)),
+                        OrderedKeys = orderedKeys
+                    }
+                };
+            }
             var legacyBytes = ConfigMigrationPipeline.TransformToLegacy(current);
             options.BeforeExecute?.Invoke();
-            return ConfigMigrationTransaction.ReverseSync(options, current, legacy, legacyBytes);
+            return ConfigMigrationTransaction.ReverseSync(
+                options,
+                current,
+                legacy,
+                legacyBytes,
+                currentWasV2
+                    ? HudPlacementConfigFileMigration.SchemaId
+                    : DamageForecastSchemaV1.SchemaId);
         }
         catch (Exception exception)
         {

@@ -56,6 +56,9 @@ internal static class DamageForecastConfigText
             nameof(DamageForecastBaseLibConfig.IncludeRelicHpLossModifiersInIncomingDamage) => zh ? "计入遗物减伤" : "Apply Relic Damage Reduction",
             nameof(DamageForecastBaseLibConfig.ShowLocalPlayerHudInMultiplayer) => zh ? "在多人模式中显示本机伤害预测 HUD" : "Show local-player Damage Forecast HUD in Multiplayer",
             nameof(DamageForecastBaseLibConfig.HudAnchorPreset) => zh ? "HUD 锚点位置" : "HUD Position",
+            nameof(DamageForecastBaseLibConfig.ExpectedHpLossPlacementPreset) => zh ? "预计掉血 -N 的位置" : "Expected HP Loss -N Position",
+            nameof(DamageForecastBaseLibConfig.IncomingDamagePlacementPreset) => zh ? "来袭总伤害 N 的位置" : "Incoming Damage N Position",
+            nameof(DamageForecastBaseLibConfig.DetailsPlacementPreset) => zh ? "护盾与生命损失明细的位置" : "Block & HP Loss Details Position",
             nameof(DamageForecastBaseLibConfig.HorizontalOffset) => zh ? "水平偏移" : "Horizontal Offset",
             nameof(DamageForecastBaseLibConfig.VerticalOffset) => zh ? "垂直偏移" : "Vertical Offset",
             nameof(DamageForecastBaseLibConfig.TotalExpectedLossColor) => zh ? "HUD 颜色" : "HUD Color",
@@ -103,6 +106,19 @@ internal static class DamageForecastConfigText
                 DamageForecastHudAnchor.HealthBarAbove => zh ? "血条上方" : "Above Health Bar",
                 DamageForecastHudAnchor.HealthBarBelow => zh ? "血条下方" : "Below Health Bar",
                 _ => anchor.ToString()
+            };
+        }
+
+        if (value is HudPlacementPreset preset)
+        {
+            return preset switch
+            {
+                HudPlacementPreset.HealthBarRight => zh ? "血条右侧" : "Right of Health Bar",
+                HudPlacementPreset.HealthBarLeft => zh ? "血条左侧" : "Left of Health Bar",
+                HudPlacementPreset.HealthBarAbove => zh ? "人物上方" : "Above Character",
+                HudPlacementPreset.HealthBarBelow => zh ? "血条下方" : "Below Health Bar",
+                HudPlacementPreset.EndTurnButtonAbove => zh ? "结束回合按钮上方" : "Above End Turn Button",
+                _ => preset.ToString()
             };
         }
 

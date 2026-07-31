@@ -33,7 +33,8 @@ internal static class ConfigMigrationTransaction
         ConfigMigrationOptions options,
         ConfigValidationResult current,
         ConfigValidationResult legacy,
-        byte[] legacyBytes)
+        byte[] legacyBytes,
+        string sourceSchema = DamageForecastSchemaV1.SchemaId)
     {
         var reverseTemp = Path.GetFullPath(options.ReverseTempPath);
         try
@@ -41,6 +42,8 @@ internal static class ConfigMigrationTransaction
             ValidatePaths(options);
             Directory.CreateDirectory(options.TransactionRoot);
             ThrowIf(options, ConfigMigrationFailurePoint.SourceRead, "injected source read failure");
+            var currentSourceBytes = File.ReadAllBytes(options.CurrentConfigPath);
+            EnsureSha(currentSourceBytes, current.Metadata.Sha256, "current source changed before reverse sync");
             var legacySourceBytes = File.ReadAllBytes(options.LegacyConfigPath);
             EnsureSha(legacySourceBytes, legacy.Metadata.Sha256, "legacy source changed before reverse sync");
             var backupRecovered = EnsureBackup(options, legacySourceBytes, legacy.Metadata.Sha256);
@@ -60,7 +63,7 @@ internal static class ConfigMigrationTransaction
                 sourcePath: options.CurrentConfigPath,
                 targetPath: options.LegacyConfigPath,
                 tempPath: reverseTemp,
-                sourceSchema: DamageForecastSchemaV1.SchemaId,
+                sourceSchema: sourceSchema,
                 targetSchema: LegacyIdentityDescriptor.SchemaId,
                 strategy: "explicit-new-to-old-reverse-sync",
                 status: "rolled-back",

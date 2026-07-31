@@ -83,6 +83,13 @@ internal static class DamageForecastHudDisplay
         ApplyMainHudStyle(label);
     }
 
+    public static void ApplyNumericHudAlignment(
+        Label label,
+        HudPlacementPreset preset)
+    {
+        label.HorizontalAlignment = HudNumericAlignmentPolicy.Resolve(preset);
+    }
+
     public static void ApplyMainHudTextBounds(Label label)
     {
         ApplyHudTextBounds(label);
@@ -107,6 +114,14 @@ internal static class DamageForecastHudDisplay
         label.AddThemeColorOverride("font_shadow_color", Colors.Black);
         label.AddThemeConstantOverride("shadow_offset_x", 2);
         label.AddThemeConstantOverride("shadow_offset_y", 2);
+    }
+
+    public static void ApplyDetailHudTextBounds(RichTextLabel label)
+    {
+        var contentWidth = MathF.Max(1f, label.GetContentWidth());
+        var contentHeight = MathF.Max(GetDetailHeight(), label.GetContentHeight());
+        label.CustomMinimumSize = new Vector2(contentWidth, contentHeight);
+        label.Size = label.CustomMinimumSize;
     }
 
     public static void ApplyHudPosition(
@@ -270,4 +285,12 @@ internal static class DamageForecastHudDisplay
     {
         return (int)MathF.Round(Math.Clamp(value, 0f, 1f) * 255f);
     }
+}
+
+internal static class HudNumericAlignmentPolicy
+{
+    public static HorizontalAlignment Resolve(HudPlacementPreset preset) =>
+        preset == HudPlacementPreset.EndTurnButtonAbove
+            ? HorizontalAlignment.Center
+            : HorizontalAlignment.Left;
 }

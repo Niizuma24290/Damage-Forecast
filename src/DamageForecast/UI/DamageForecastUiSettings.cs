@@ -9,7 +9,6 @@ internal static class DamageForecastUiSettings
     private static bool _hudEnabled = true;
     private static bool _showLocalHudInMultiplayer = true;
     private static bool _showBreakdownDetails;
-    private static bool _freezeHudWithinPlayerTurn = true;
     private static DamageDisplayMode _damageDisplayMode = DamageDisplayMode.ExpectedHpLossOnly;
     private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.RightOfExpectedHpLoss;
     private static bool _includeCurrentBlockInIncomingDamage;
@@ -17,7 +16,9 @@ internal static class DamageForecastUiSettings
     private static bool _includeRelicBlockInIncomingDamage;
     private static bool _includePowerHpLossModifiersInIncomingDamage;
     private static bool _includeRelicHpLossModifiersInIncomingDamage;
-    private static DamageForecastHudAnchor _hudAnchor = DamageForecastHudAnchor.HealthBarRight;
+    private static HudPlacementPreset _expectedHpLossPlacementPreset = HudPlacementPreset.HealthBarRight;
+    private static HudPlacementPreset _incomingDamagePlacementPreset = HudPlacementPreset.HealthBarRight;
+    private static HudPlacementPreset _detailsPlacementPreset = HudPlacementPreset.HealthBarRight;
     private static float _offsetX;
     private static float _offsetY;
     private static Color _totalLossColor = Colors.White;
@@ -30,7 +31,7 @@ internal static class DamageForecastUiSettings
 
     public static bool ShowBreakdownDetails => _showBreakdownDetails;
 
-    public static bool FreezeHudWithinPlayerTurn => _freezeHudWithinPlayerTurn;
+    public static bool FreezeHudWithinPlayerTurn => true;
 
     public static DamageDisplayMode DamageDisplayMode => _damageDisplayMode;
 
@@ -46,7 +47,20 @@ internal static class DamageForecastUiSettings
 
     public static bool IncludeRelicHpLossModifiersInIncomingDamage => _includeRelicHpLossModifiersInIncomingDamage;
 
-    public static DamageForecastHudAnchor HudAnchor => _hudAnchor;
+    public static HudPlacementPreset ExpectedHpLossPlacementPreset => _expectedHpLossPlacementPreset;
+
+    public static HudPlacementPreset IncomingDamagePlacementPreset => _incomingDamagePlacementPreset;
+
+    public static HudPlacementPreset DetailsPlacementPreset => _detailsPlacementPreset;
+
+    public static DamageForecastHudAnchor HudAnchor =>
+        ExpectedHpLossPlacementPreset switch
+        {
+            HudPlacementPreset.HealthBarLeft => DamageForecastHudAnchor.HealthBarLeft,
+            HudPlacementPreset.HealthBarAbove => DamageForecastHudAnchor.HealthBarAbove,
+            HudPlacementPreset.HealthBarBelow => DamageForecastHudAnchor.HealthBarBelow,
+            _ => DamageForecastHudAnchor.HealthBarRight
+        };
 
     public static float OffsetX => _offsetX;
 
@@ -64,7 +78,9 @@ internal static class DamageForecastUiSettings
 
     public static void SetShowBreakdownDetails(bool value) => Set(ref _showBreakdownDetails, value);
 
-    public static void SetFreezeHudWithinPlayerTurn(bool value) => Set(ref _freezeHudWithinPlayerTurn, value);
+    public static void SetFreezeHudWithinPlayerTurn(bool value)
+    {
+    }
 
     public static void SetDamageDisplayMode(DamageDisplayMode value) => Set(ref _damageDisplayMode, value);
 
@@ -80,7 +96,14 @@ internal static class DamageForecastUiSettings
 
     public static void SetIncludeRelicHpLossModifiersInIncomingDamage(bool value) => Set(ref _includeRelicHpLossModifiersInIncomingDamage, value);
 
-    public static void SetHudAnchor(DamageForecastHudAnchor value) => Set(ref _hudAnchor, value);
+    public static void SetExpectedHpLossPlacementPreset(HudPlacementPreset value) =>
+        Set(ref _expectedHpLossPlacementPreset, value);
+
+    public static void SetIncomingDamagePlacementPreset(HudPlacementPreset value) =>
+        Set(ref _incomingDamagePlacementPreset, value);
+
+    public static void SetDetailsPlacementPreset(HudPlacementPreset value) =>
+        Set(ref _detailsPlacementPreset, value);
 
     public static void SetOffsetX(float value) => Set(ref _offsetX, Math.Clamp(value, -320f, 320f));
 
@@ -106,7 +129,9 @@ internal static class DamageForecastUiSettings
             includeRelicBlockInIncomingDamage: false,
             includePowerHpLossModifiersInIncomingDamage: false,
             includeRelicHpLossModifiersInIncomingDamage: false,
-            hudAnchor: DamageForecastHudAnchor.HealthBarRight,
+            expectedHpLossPlacementPreset: HudPlacementPreset.HealthBarRight,
+            incomingDamagePlacementPreset: HudPlacementPreset.HealthBarRight,
+            detailsPlacementPreset: HudPlacementPreset.HealthBarRight,
             offsetX: 0f,
             offsetY: 0f,
             totalLossColor: Colors.White,
@@ -126,7 +151,9 @@ internal static class DamageForecastUiSettings
         bool includeRelicBlockInIncomingDamage,
         bool includePowerHpLossModifiersInIncomingDamage,
         bool includeRelicHpLossModifiersInIncomingDamage,
-        DamageForecastHudAnchor hudAnchor,
+        HudPlacementPreset expectedHpLossPlacementPreset,
+        HudPlacementPreset incomingDamagePlacementPreset,
+        HudPlacementPreset detailsPlacementPreset,
         float offsetX,
         float offsetY,
         Color totalLossColor,
@@ -137,7 +164,6 @@ internal static class DamageForecastUiSettings
         changed |= Apply(ref _hudEnabled, hudEnabled);
         changed |= Apply(ref _showLocalHudInMultiplayer, showLocalHudInMultiplayer);
         changed |= Apply(ref _showBreakdownDetails, showBreakdownDetails);
-        changed |= Apply(ref _freezeHudWithinPlayerTurn, freezeHudWithinPlayerTurn);
         changed |= Apply(ref _damageDisplayMode, damageDisplayMode);
         changed |= Apply(ref _incomingDamagePlacement, incomingDamagePlacement);
         changed |= Apply(ref _includeCurrentBlockInIncomingDamage, includeCurrentBlockInIncomingDamage);
@@ -145,7 +171,9 @@ internal static class DamageForecastUiSettings
         changed |= Apply(ref _includeRelicBlockInIncomingDamage, includeRelicBlockInIncomingDamage);
         changed |= Apply(ref _includePowerHpLossModifiersInIncomingDamage, includePowerHpLossModifiersInIncomingDamage);
         changed |= Apply(ref _includeRelicHpLossModifiersInIncomingDamage, includeRelicHpLossModifiersInIncomingDamage);
-        changed |= Apply(ref _hudAnchor, hudAnchor);
+        changed |= Apply(ref _expectedHpLossPlacementPreset, expectedHpLossPlacementPreset);
+        changed |= Apply(ref _incomingDamagePlacementPreset, incomingDamagePlacementPreset);
+        changed |= Apply(ref _detailsPlacementPreset, detailsPlacementPreset);
         changed |= Apply(ref _offsetX, Math.Clamp(offsetX, -320f, 320f));
         changed |= Apply(ref _offsetY, Math.Clamp(offsetY, -240f, 240f));
         changed |= Apply(ref _totalLossColor, totalLossColor);

@@ -10,13 +10,17 @@ namespace DamageForecast.Settings;
 
 internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
 {
-    private static readonly string[] PropertyOrder = DamageForecastConfigSchema.PropertyOrder;
+    private static readonly string[] PropertyOrder = HudPlacementConfigSchema.V1PropertyOrder;
+    private static readonly string[] LocalizationPropertyOrder = HudPlacementConfigSchema.V2PropertyOrder;
 
     private static DamageForecastBaseLibConfig? _activeConfig;
     private static DamageForecastConfigLanguage _configLanguage;
     private static DamageDisplayMode _damageDisplayMode = DamageDisplayMode.ExpectedHpLossOnly;
     private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.RightOfExpectedHpLoss;
     private static DamageForecastHudAnchor _hudAnchorPreset = DamageForecastHudAnchor.HealthBarRight;
+    private static HudPlacementPreset _expectedHpLossPlacementPreset = HudPlacementPreset.HealthBarRight;
+    private static HudPlacementPreset _incomingDamagePlacementPreset = HudPlacementPreset.HealthBarRight;
+    private static HudPlacementPreset _detailsPlacementPreset = HudPlacementPreset.HealthBarRight;
 
     private readonly Dictionary<string, Control> _settingRows = [];
     private readonly Dictionary<string, Control> _settingControls = [];
@@ -90,6 +94,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
     public static bool ShowLocalPlayerHudInMultiplayer { get; set; } = true;
 
     [ConfigSection("PositionAndAppearance")]
+    [ConfigIgnore]
     public static DamageForecastHudAnchor HudAnchorPreset
     {
         get => _hudAnchorPreset;
@@ -101,6 +106,51 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             }
 
             _hudAnchorPreset = value;
+            _activeConfig?.ApplyLocalizedText();
+        }
+    }
+
+    public static HudPlacementPreset ExpectedHpLossPlacementPreset
+    {
+        get => _expectedHpLossPlacementPreset;
+        set
+        {
+            if (_expectedHpLossPlacementPreset == value)
+            {
+                return;
+            }
+
+            _expectedHpLossPlacementPreset = value;
+            _activeConfig?.ApplyLocalizedText();
+        }
+    }
+
+    public static HudPlacementPreset IncomingDamagePlacementPreset
+    {
+        get => _incomingDamagePlacementPreset;
+        set
+        {
+            if (_incomingDamagePlacementPreset == value)
+            {
+                return;
+            }
+
+            _incomingDamagePlacementPreset = value;
+            _activeConfig?.ApplyLocalizedText();
+        }
+    }
+
+    public static HudPlacementPreset DetailsPlacementPreset
+    {
+        get => _detailsPlacementPreset;
+        set
+        {
+            if (_detailsPlacementPreset == value)
+            {
+                return;
+            }
+
+            _detailsPlacementPreset = value;
             _activeConfig?.ApplyLocalizedText();
         }
     }
@@ -134,7 +184,6 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
         AddSection(optionContainer, "Display");
         AddProperty(optionContainer, nameof(EnableDamageForecastHud));
         AddProperty(optionContainer, nameof(ShowAdvancedShieldHeartDetails));
-        AddProperty(optionContainer, nameof(FreezeHudNumbersAfterTurnEnd));
         AddSection(optionContainer, "IncomingDamage");
         AddProperty(optionContainer, nameof(DamageDisplayMode));
         AddProperty(optionContainer, nameof(IncomingDamagePlacement));
@@ -146,9 +195,12 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
         AddSection(optionContainer, "Multiplayer");
         AddProperty(optionContainer, nameof(ShowLocalPlayerHudInMultiplayer));
         AddSection(optionContainer, "PositionAndAppearance");
-        AddProperty(optionContainer, nameof(HudAnchorPreset));
+        AddProperty(optionContainer, nameof(ExpectedHpLossPlacementPreset));
+        AddProperty(optionContainer, nameof(IncomingDamagePlacementPreset));
+        AddProperty(optionContainer, nameof(DetailsPlacementPreset));
         AddProperty(optionContainer, nameof(HorizontalOffset));
         AddProperty(optionContainer, nameof(VerticalOffset));
+        optionContainer.AddChild(new DamageForecastHudPreview());
         AddProperty(optionContainer, nameof(TotalExpectedLossColor));
         AddProperty(optionContainer, nameof(ShieldDetailColor));
         AddProperty(optionContainer, nameof(HeartDetailColor));
@@ -190,7 +242,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             SetFirstText(header, DamageForecastConfigText.Section(key, ConfigLanguage));
         }
 
-        foreach (var propertyName in PropertyOrder)
+        foreach (var propertyName in LocalizationPropertyOrder)
         {
             if (_settingRows.TryGetValue(propertyName, out var row))
             {
@@ -472,6 +524,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             nameof(DamageForecastHudAnchor.HealthBarLeft) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarLeft, ConfigLanguage),
             nameof(DamageForecastHudAnchor.HealthBarAbove) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarAbove, ConfigLanguage),
             nameof(DamageForecastHudAnchor.HealthBarBelow) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarBelow, ConfigLanguage),
+            nameof(HudPlacementPreset.EndTurnButtonAbove) => DamageForecastConfigText.EnumValue(nameof(ExpectedHpLossPlacementPreset), HudPlacementPreset.EndTurnButtonAbove, ConfigLanguage),
             "Expected HP Loss (Default)" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.ExpectedHpLossOnly, ConfigLanguage),
             "Incoming Damage" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.IncomingDamageOnly, ConfigLanguage),
             "Show Both" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.Both, ConfigLanguage),
@@ -481,6 +534,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             "Left of Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarLeft, ConfigLanguage),
             "Above Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarAbove, ConfigLanguage),
             "Below Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarBelow, ConfigLanguage),
+            "Above End Turn Button" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(ExpectedHpLossPlacementPreset), HudPlacementPreset.EndTurnButtonAbove, ConfigLanguage),
             _ => text
         };
         return !string.Equals(localized, text, StringComparison.Ordinal);

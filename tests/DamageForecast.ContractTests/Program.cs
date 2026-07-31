@@ -391,6 +391,9 @@ cases.AddRange(PostG6NamingContractCases.Create());
 cases.AddRange(HudNodeOwnershipContractCases.Create());
 cases.AddRange(ConfigMigrationContractCases.Create());
 cases.AddRange(PostG6ClosureContractCases.Create());
+cases.AddRange(HudLayoutContractCases.Create());
+cases.AddRange(HudEndTurnFreezeContractCases.Create());
+cases.AddRange(HudPlacementConfigContractCases.Create());
 
 return ContractRunner.Run(cases);
 

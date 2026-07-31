@@ -24,6 +24,12 @@ internal static class ForecastRefreshPatch
     internal const string MainLabelName = "DamageForecastExpectedLossLabel";
     internal const string IncomingLabelName = "DamageForecastIncomingDamageLabel";
     internal const string DetailLabelName = "DamageForecastDetailsLabel";
+    private const string RootName = DamageForecastHudRoot.RootName;
+    private const string RootOwnershipGroup = DamageForecastHudRoot.OwnershipGroup;
+    private const string EndTurnRootName = "DamageForecastEndTurnHudRoot";
+    private const string EndTurnRootOwnershipGroup = "damage-forecast-end-turn-hud-root";
+    private const string FrozenEndTurnRootName = "DamageForecastFrozenEndTurnHudRoot";
+    private const string FrozenEndTurnRootOwnershipGroup = "damage-forecast-frozen-end-turn-hud-root";
     private const string MainLabelOwnershipGroup = "damage-forecast-hud-expected-loss";
     private const string IncomingLabelOwnershipGroup = "damage-forecast-hud-incoming-damage";
     private const string DetailLabelOwnershipGroup = "damage-forecast-hud-details";
@@ -31,6 +37,7 @@ internal static class ForecastRefreshPatch
     private static readonly LocalIncomingDamageReader Reader = new();
     private static readonly LocalDamageForecast Forecast = new();
     private static readonly List<WeakReference<NHealthBar>> RegisteredBars = new();
+    private static WeakReference<NEndTurnButton>? _frozenEndTurnButton;
 #if DAMAGE_FORECAST_VISIBILITY_PROFILING
     [ThreadStatic]
     private static int _lastRegisteredBarsVisited;
@@ -64,8 +71,21 @@ internal static class ForecastRefreshPatch
         Refresh(__instance, size);
     }
 
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(NHealthBar.UpdateLayoutForCreatureBounds))]
+    private static void UpdateLayoutForCreatureBoundsPostfix(NHealthBar __instance)
+    {
+        Refresh(__instance, null);
+    }
+
     private static void Refresh(NHealthBar bar, Vector2? containerSize)
     {
+        if (IsMultiplayerSummaryHealthBar(bar))
+        {
+            HideExisting(bar);
+            return;
+        }
+
         if (!TryGetLocalCreature(bar, out var creature) || creature is null)
         {
             HideExisting(bar);
@@ -74,24 +94,28 @@ internal static class ForecastRefreshPatch
 
         RegisterBar(bar);
 
-        var mainLabel = GetOrCreateMainLabel(bar);
-        var incomingLabel = GetOrCreateIncomingLabel(bar);
-        var detailLabel = GetOrCreateDetailLabel(bar);
-        if (mainLabel is null || incomingLabel is null || detailLabel is null)
+        var healthRoot = GetOrCreateRoot(bar, RootName, RootOwnershipGroup);
+        var endTurnButton = HudAnchorResolver.ResolveEndTurnButton(bar);
+        var endTurnRoot = endTurnButton is null
+            ? null
+            : GetOrCreateRoot(endTurnButton, EndTurnRootName, EndTurnRootOwnershipGroup);
+        var hasFrozenEndTurnSnapshot = IsFrozenEndTurnButton(endTurnButton);
+        if (healthRoot is null)
         {
             return;
         }
 
-        DamageForecastHudDisplay.ApplyMainHudStyle(mainLabel);
-        DamageForecastHudDisplay.ApplyIncomingHudStyle(incomingLabel);
-        DamageForecastHudDisplay.ApplyDetailHudStyle(detailLabel);
         ObservedHpLossBudgetTracker.Observe(creature);
 
         if (!DamageForecastHudVisibilityPolicy.ShouldRenderHud(bar, creature, out var temporarilyCovered))
         {
             DamageForecastHudSnapshotStore.OnVisibilityHidden(temporarilyCovered);
 
-            Hide(mainLabel, incomingLabel, detailLabel);
+            healthRoot.HideAll();
+            if (HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
+            {
+                endTurnRoot?.HideAll();
+            }
             return;
         }
 
@@ -102,30 +126,46 @@ internal static class ForecastRefreshPatch
                 BuildForecastHudSnapshot(creature));
         if (!DamageForecastHudDisplay.HasDisplayableSnapshot(snapshot))
         {
-            Hide(mainLabel, incomingLabel, detailLabel);
+            healthRoot.HideAll();
+            if (HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
+            {
+                endTurnRoot?.HideAll();
+            }
             return;
         }
 
-        mainLabel.Text = DamageForecastHudDisplay.ShouldShowExpectedHpLoss(snapshot)
+        var expectedText = DamageForecastHudDisplay.ShouldShowExpectedHpLoss(snapshot)
             ? DamageForecastHudDisplay.BuildMainHudDisplay(snapshot.ExpectedHpLoss)
             : string.Empty;
-        incomingLabel.Text = DamageForecastHudDisplay.ShouldShowIncomingDamage(snapshot)
+        var incomingText = DamageForecastHudDisplay.ShouldShowIncomingDamage(snapshot)
             ? DamageForecastHudDisplay.BuildIncomingHudDisplay(snapshot.IncomingDamage)
             : string.Empty;
         var details = DamageForecastHudDisplay.BuildHudDetails(snapshot.ExpectedHpLoss);
-        DamageForecastHudDisplay.ApplyMainHudTextBounds(mainLabel);
-        DamageForecastHudDisplay.ApplyHudTextBounds(incomingLabel);
-        Reposition(bar, mainLabel, incomingLabel, detailLabel, containerSize);
-        ShowOrHide(mainLabel);
-        ShowOrHide(incomingLabel);
-        if (string.IsNullOrEmpty(details))
+        ApplyRoot(
+            healthRoot,
+            creature,
+            bar.HpBarContainer,
+            containerSize,
+            expectedText,
+            incomingText,
+            details,
+            endTurnSurface: false);
+        if (endTurnRoot is not null
+            && HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
         {
-            Hide(detailLabel);
+            ApplyRoot(
+                endTurnRoot,
+                creature,
+                bar.HpBarContainer,
+                containerSize,
+                expectedText,
+                incomingText,
+                details,
+                endTurnSurface: true);
         }
         else
         {
-            detailLabel.Text = details;
-            detailLabel.Show();
+            endTurnRoot?.HideAll();
         }
     }
 
@@ -163,6 +203,133 @@ internal static class ForecastRefreshPatch
     private static Creature? GetCreature(NHealthBar bar)
     {
         return CreatureField?.GetValue(bar) as Creature;
+    }
+
+    internal static bool TryGetRegisteredLocalCreature(
+        out Player? player,
+        out Creature? creature)
+    {
+        for (var i = RegisteredBars.Count - 1; i >= 0; i--)
+        {
+            if (!RegisteredBars[i].TryGetTarget(out var bar)
+                || !IsUsableBar(bar))
+            {
+                RegisteredBars.RemoveAt(i);
+                continue;
+            }
+
+            if (TryGetLocalCreature(bar, out creature) && creature?.Player is { } owner)
+            {
+                player = owner;
+                return true;
+            }
+        }
+
+        player = null;
+        creature = null;
+        return false;
+    }
+
+    private static bool IsMultiplayerSummaryHealthBar(NHealthBar bar)
+    {
+        for (Node? ancestor = bar.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
+        {
+            if (DamageForecastHudSurfacePolicy.IsExcludedMultiplayerSummaryAncestor(
+                    ancestor.GetType().FullName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static DamageForecastHudRoot? GetOrCreateRoot(
+        Control parent,
+        string rootName,
+        string ownershipGroup)
+    {
+        var root = ResolveHudNode(
+            parent,
+            rootName,
+            ownershipGroup,
+            static () => new DamageForecastHudRoot
+            {
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                ZIndex = 50,
+                Visible = false
+            },
+            static value => value.Initialize());
+        if (root is not null)
+        {
+            root.Position = Vector2.Zero;
+            root.Size = parent.Size;
+        }
+
+        return root;
+    }
+
+    private static void ApplyRoot(
+        DamageForecastHudRoot root,
+        Creature creature,
+        Control? healthBar,
+        Vector2? containerSize,
+        string expectedText,
+        string incomingText,
+        string details,
+        bool endTurnSurface)
+    {
+        if (healthBar is null)
+        {
+            root.HideAll();
+            return;
+        }
+
+        root.Apply(
+            expectedText,
+            incomingText,
+            details,
+            DamageForecastUiSettings.ExpectedHpLossPlacementPreset,
+            DamageForecastUiSettings.IncomingDamagePlacementPreset,
+            DamageForecastUiSettings.DetailsPlacementPreset,
+            DamageForecastUiSettings.IncomingDamagePlacement,
+            DamageForecastUiSettings.OffsetX,
+            DamageForecastUiSettings.OffsetY,
+            endTurnSurface,
+            () => HudAnchorResolver.ResolveAvailableBounds(root),
+            preset =>
+            {
+                if (preset == HudPlacementPreset.EndTurnButtonAbove)
+                {
+                    return HudAnchorResolver.TryResolveEndTurnButton(root, out var endAnchor)
+                        ? endAnchor
+                        : null;
+                }
+
+                if (preset == HudPlacementPreset.HealthBarAbove
+                    && HudAnchorResolver.TryResolveCharacterAbove(
+                        root,
+                        creature,
+                        healthBar,
+                        containerSize,
+                        out var creatureAnchor))
+                {
+                    return creatureAnchor;
+                }
+
+                return HudAnchorResolver.TryResolveHealthBar(
+                    root,
+                    healthBar,
+                    containerSize,
+                    out var healthAnchor)
+                    ? healthAnchor
+                    : null;
+            },
+            preset => preset == HudPlacementPreset.HealthBarBelow
+                && HudAnchorResolver.TryResolvePowerAvoidance(root, creature, out var avoidance)
+                    ? avoidance
+                    : null,
+            preserveOnAnchorFailure: endTurnSurface);
     }
 
     private static Label? GetOrCreateMainLabel(NHealthBar bar)
@@ -330,6 +497,30 @@ internal static class ForecastRefreshPatch
 
     private static void HideExisting(NHealthBar bar)
     {
+        var healthRoot = ResolveHudNode<DamageForecastHudRoot>(
+            bar,
+            RootName,
+            RootOwnershipGroup,
+            create: null,
+            applyStyle: null);
+        healthRoot?.HideAll();
+        if (DamageForecastHudSurfacePolicy.CanHideSharedEndTurnSurface(
+                IsRegisteredBar(bar)))
+        {
+            var endTurnButton = HudAnchorResolver.ResolveEndTurnButton(bar);
+            if (endTurnButton is not null)
+            {
+                var liveEndTurnRoot = ResolveHudNode<DamageForecastHudRoot>(
+                    endTurnButton,
+                    EndTurnRootName,
+                    EndTurnRootOwnershipGroup,
+                    create: null,
+                    applyStyle: null);
+                liveEndTurnRoot?.HideAll();
+                ClearFrozenEndTurnSnapshot(endTurnButton);
+            }
+        }
+
         var parent = GetLabelParent(bar);
         if (parent is null)
         {
@@ -405,9 +596,19 @@ internal static class ForecastRefreshPatch
 
     private static void RegisterBar(NHealthBar bar)
     {
+        if (IsRegisteredBar(bar))
+        {
+            return;
+        }
+
+        RegisteredBars.Add(new WeakReference<NHealthBar>(bar));
+    }
+
+    private static bool IsRegisteredBar(NHealthBar bar)
+    {
         for (var i = RegisteredBars.Count - 1; i >= 0; i--)
         {
-            if (!RegisteredBars[i].TryGetTarget(out var existing) || !GodotObject.IsInstanceValid(existing))
+            if (!RegisteredBars[i].TryGetTarget(out var existing) || !IsUsableBar(existing))
             {
                 RegisteredBars.RemoveAt(i);
                 continue;
@@ -415,11 +616,11 @@ internal static class ForecastRefreshPatch
 
             if (ReferenceEquals(existing, bar))
             {
-                return;
+                return true;
             }
         }
 
-        RegisteredBars.Add(new WeakReference<NHealthBar>(bar));
+        return false;
     }
 
     internal static void RefreshRegisteredBars()
@@ -429,7 +630,7 @@ internal static class ForecastRefreshPatch
 #endif
         for (var i = RegisteredBars.Count - 1; i >= 0; i--)
         {
-            if (!RegisteredBars[i].TryGetTarget(out var bar) || !GodotObject.IsInstanceValid(bar))
+            if (!RegisteredBars[i].TryGetTarget(out var bar) || !IsUsableBar(bar))
             {
                 RegisteredBars.RemoveAt(i);
                 continue;
@@ -445,6 +646,129 @@ internal static class ForecastRefreshPatch
 #endif
     }
 
+    internal static void FreezeEndTurnAnchor(NEndTurnButton button)
+    {
+        ClearFrozenEndTurnSnapshot(button);
+        var liveRoot = ResolveLiveEndTurnRoot(button);
+        var frozenRoot = GetOrCreateFrozenEndTurnRoot(button);
+        if (liveRoot is null
+            || frozenRoot is null
+            || !liveRoot.CopyVisibleSnapshotTo(frozenRoot))
+        {
+            frozenRoot?.HideAll();
+            return;
+        }
+
+        _frozenEndTurnButton = new WeakReference<NEndTurnButton>(button);
+        liveRoot.HideAll();
+    }
+
+    internal static void ResumeEndTurnAnchor(NEndTurnButton button)
+    {
+        ClearFrozenEndTurnSnapshot(button);
+    }
+
+    internal static void ResumeEndTurnAnchor()
+    {
+        foreach (var reference in RegisteredBars)
+        {
+            if (!reference.TryGetTarget(out var bar) || !IsUsableBar(bar))
+            {
+                continue;
+            }
+
+            var button = HudAnchorResolver.ResolveEndTurnButton(bar);
+            if (button is not null)
+            {
+                ResumeEndTurnAnchor(button);
+                return;
+            }
+        }
+    }
+
+    internal static void HideAndClearRegisteredBars()
+    {
+        var bars = RegisteredBars
+            .Select(reference => reference.TryGetTarget(out var bar) ? bar : null)
+            .Where(bar => bar is not null && IsUsableBar(bar))
+            .Cast<NHealthBar>()
+            .ToArray();
+        foreach (var bar in bars)
+        {
+            HideExisting(bar);
+        }
+
+        RegisteredBars.Clear();
+        _frozenEndTurnButton = null;
+    }
+
+    private static DamageForecastHudRoot? ResolveLiveEndTurnRoot(NEndTurnButton button)
+    {
+        return ResolveHudNode<DamageForecastHudRoot>(
+            button,
+            EndTurnRootName,
+            EndTurnRootOwnershipGroup,
+            create: null,
+            applyStyle: null);
+    }
+
+    private static DamageForecastHudRoot? GetOrCreateFrozenEndTurnRoot(
+        NEndTurnButton button)
+    {
+        var surface = HudAnchorResolver.ResolveEndTurnSurfaceParent(button);
+        return surface is null
+            ? null
+            : GetOrCreateRoot(
+                surface,
+                FrozenEndTurnRootName,
+                FrozenEndTurnRootOwnershipGroup);
+    }
+
+    private static DamageForecastHudRoot? ResolveFrozenEndTurnRoot(
+        NEndTurnButton button)
+    {
+        var surface = HudAnchorResolver.ResolveEndTurnSurfaceParent(button);
+        return surface is null
+            ? null
+            : ResolveHudNode<DamageForecastHudRoot>(
+                surface,
+                FrozenEndTurnRootName,
+                FrozenEndTurnRootOwnershipGroup,
+                create: null,
+                applyStyle: null);
+    }
+
+    private static bool IsFrozenEndTurnButton(NEndTurnButton? button)
+    {
+        if (button is null
+            || _frozenEndTurnButton is null
+            || !_frozenEndTurnButton.TryGetTarget(out var frozenButton)
+            || !GodotObject.IsInstanceValid(frozenButton)
+            || frozenButton.IsQueuedForDeletion())
+        {
+            _frozenEndTurnButton = null;
+            return false;
+        }
+
+        return ReferenceEquals(button, frozenButton);
+    }
+
+    private static void ClearFrozenEndTurnSnapshot(NEndTurnButton button)
+    {
+        ResolveFrozenEndTurnRoot(button)?.HideAll();
+        if (_frozenEndTurnButton is not null
+            && _frozenEndTurnButton.TryGetTarget(out var frozenButton)
+            && ReferenceEquals(button, frozenButton))
+        {
+            _frozenEndTurnButton = null;
+        }
+    }
+
+    private static bool IsUsableBar(NHealthBar bar) =>
+        GodotObject.IsInstanceValid(bar)
+        && !bar.IsQueuedForDeletion()
+        && bar.IsInsideTree();
+
     internal static void CommitFinalSnapshot(Creature creature)
     {
         var player = creature.Player;
@@ -453,10 +777,164 @@ internal static class ForecastRefreshPatch
             return;
         }
 
-        ObservedHpLossBudgetTracker.Observe(creature);
-        var snapshot = BuildForecastHudSnapshot(creature);
-        DamageForecastHudSnapshotStore.OnPlayerTurnEnding(player, creature, snapshot);
+        DamageForecastHudSnapshotStore.OnPlayerTurnEnding(player, creature);
     }
+}
+
+[HarmonyPatch(typeof(NEndTurnButton))]
+internal static class ForecastEndTurnFreezePatch
+{
+    private static long _nextGeneration;
+    private static long? _activeGeneration;
+    private static WeakReference<NEndTurnButton>? _activeButton;
+    private static WeakReference<Player>? _activePlayer;
+    private static WeakReference<Creature>? _activeCreature;
+
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(NEndTurnButton._Ready))]
+    private static void ReadyPostfix(NEndTurnButton __instance)
+    {
+        HudAnchorResolver.EnsureEndTurnAnchor(__instance);
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch("CallReleaseLogic")]
+    private static void CallReleaseLogicPrefix(NEndTurnButton __instance)
+    {
+        CancelActive();
+        if (!ForecastRefreshPatch.TryGetRegisteredLocalCreature(
+                out var player,
+                out var creature)
+            || player is null
+            || creature is null)
+        {
+            return;
+        }
+
+        var generation = Interlocked.Increment(ref _nextGeneration);
+        _activeGeneration = generation;
+        _activeButton = new WeakReference<NEndTurnButton>(__instance);
+        _activePlayer = new WeakReference<Player>(player);
+        _activeCreature = new WeakReference<Creature>(creature);
+        DamageForecastHudSnapshotStore.PrepareEndTurn(player, creature, generation);
+        ForecastRefreshPatch.FreezeEndTurnAnchor(__instance);
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("OnDisable")]
+    private static void OnDisablePostfix(NEndTurnButton __instance)
+    {
+        if (!TryGetActive(
+                __instance,
+                out var generation,
+                out var player,
+                out var creature))
+        {
+            return;
+        }
+
+        DamageForecastHudSnapshotStore.ConfirmEndTurn(player, creature, generation);
+        ClearActive();
+        ForecastRefreshPatch.RefreshRegisteredBars();
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("CallReleaseLogic")]
+    private static void CallReleaseLogicPostfix(NEndTurnButton __instance)
+    {
+        if (!TryGetActive(
+                __instance,
+                out var generation,
+                out var player,
+                out var creature))
+        {
+            return;
+        }
+
+        DamageForecastHudSnapshotStore.CancelEndTurn(player, creature, generation);
+        ClearActive();
+        ForecastRefreshPatch.ResumeEndTurnAnchor(__instance);
+        ForecastRefreshPatch.RefreshRegisteredBars();
+    }
+
+    internal static void Clear()
+    {
+        CancelActive();
+        ClearActive();
+    }
+
+    internal static bool HasLifecycleMethod(string methodName)
+    {
+        return AccessTools.Method(typeof(NEndTurnButton), methodName) is not null;
+    }
+
+    private static void CancelActive()
+    {
+        if (_activeGeneration is not { } generation
+            || _activePlayer is null
+            || !_activePlayer.TryGetTarget(out var player)
+            || _activeCreature is null
+            || !_activeCreature.TryGetTarget(out var creature))
+        {
+            return;
+        }
+
+        DamageForecastHudSnapshotStore.CancelEndTurn(player, creature, generation);
+    }
+
+    private static bool TryGetActive(
+        NEndTurnButton button,
+        out long generation,
+        out Player player,
+        out Creature creature)
+    {
+        if (_activeGeneration is { } activeGeneration
+            && _activeButton is not null
+            && _activeButton.TryGetTarget(out var activeButton)
+            && ReferenceEquals(activeButton, button)
+            && _activePlayer is not null
+            && _activePlayer.TryGetTarget(out var activePlayer)
+            && _activeCreature is not null
+            && _activeCreature.TryGetTarget(out var activeCreature))
+        {
+            generation = activeGeneration;
+            player = activePlayer;
+            creature = activeCreature;
+            return true;
+        }
+
+        generation = default;
+        player = null!;
+        creature = null!;
+        return false;
+    }
+
+    private static void ClearActive()
+    {
+        _activeGeneration = null;
+        _activeButton = null;
+        _activePlayer = null;
+        _activeCreature = null;
+    }
+}
+
+[HarmonyPatch(typeof(NCombatUi))]
+internal static class ForecastCombatUiReadyPatch
+{
+    [HarmonyPostfix]
+    [HarmonyPatch(nameof(NCombatUi._Ready))]
+    private static void ReadyPostfix(NCombatUi __instance)
+    {
+        if (__instance.EndTurnButton is { } button)
+        {
+            HudAnchorResolver.EnsureEndTurnAnchor(button);
+        }
+
+        ForecastRefreshPatch.RefreshRegisteredBars();
+    }
+
+    internal static bool HasReadyMethod() =>
+        AccessTools.Method(typeof(NCombatUi), nameof(NCombatUi._Ready)) is not null;
 }
 
 [HarmonyPatch(typeof(CardPile))]
@@ -546,6 +1024,7 @@ internal static class ForecastTurnLifecyclePatch
         }
 
         DamageForecastHudSnapshotStore.OnPlayerSideTurnStarted(player, creature);
+        ForecastRefreshPatch.ResumeEndTurnAnchor();
         ForecastRefreshPatch.RefreshRegisteredBars();
     }
 
@@ -568,6 +1047,7 @@ internal static class ForecastTurnLifecyclePatch
             }
 
             DamageForecastHudSnapshotStore.OnPlayerSideTurnStarted(player, creature);
+            ForecastRefreshPatch.ResumeEndTurnAnchor();
             ForecastRefreshPatch.RefreshRegisteredBars();
         }
         catch
@@ -601,9 +1081,11 @@ internal static class ForecastTurnLifecyclePatch
     [HarmonyPatch(nameof(Hook.AfterCombatEnd))]
     private static void AfterCombatEndPostfix()
     {
+        ForecastEndTurnFreezePatch.Clear();
         DamageForecastHudSnapshotStore.Clear();
+        ForecastRefreshPatch.HideAndClearRegisteredBars();
+        HudAnchorResolver.Clear();
         ObservedHpLossBudgetTracker.Clear();
-        ForecastRefreshPatch.RefreshRegisteredBars();
 #if DAMAGE_FORECAST_VISIBILITY_PROFILING
         Aud0007VisibilityProfiler.Dump("combat-end", reset: true);
 #endif

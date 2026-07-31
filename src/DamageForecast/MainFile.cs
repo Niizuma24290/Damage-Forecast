@@ -40,8 +40,8 @@ public static class MainFile
                 return;
             }
 
-            var migration = CompatibilityBootstrap.Run(
-                ConfigMigrationOptions.CreateDefault(ModVersion, "runtime"));
+            var migrationOptions = ConfigMigrationOptions.CreateDefault(ModVersion, "runtime");
+            var migration = CompatibilityBootstrap.Run(migrationOptions);
             if (!migration.MayRegisterCurrentConfig)
             {
                 var message = $"{DiagnosticPrefix} Config migration blocked startup: {migration.Message}";
@@ -53,6 +53,18 @@ public static class MainFile
 
             Console.WriteLine(
                 $"{DiagnosticPrefix} Config migration status={migration.Status} grade={migration.Grade}");
+            var hudPlacementMigration = HudPlacementConfigFileMigration.Run(migrationOptions);
+            if (!hudPlacementMigration.MayContinue)
+            {
+                var message = $"{DiagnosticPrefix} HUD placement config migration blocked startup: {hudPlacementMigration.Message}";
+                GD.Print(message);
+                Console.Error.WriteLine(message);
+                _initialized = true;
+                return;
+            }
+
+            Console.WriteLine(
+                $"{DiagnosticPrefix} HUD placement config status={hudPlacementMigration.Status}");
             var config = new DamageForecastBaseLibConfig();
             DamageForecastSettingsAdapter.Bind(config);
             ModConfigRegistry.Register(ModId, config);
