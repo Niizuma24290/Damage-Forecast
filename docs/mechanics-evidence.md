@@ -2,7 +2,7 @@
 
 ## Current mechanism ledger
 
-Last reconciled: 2026-07-25.
+Last reconciled: 2026-07-31.
 
 This section is the reconciliation index for the currently implemented mod.
 Older phase notes below remain historical evidence.
@@ -28,6 +28,25 @@ Older phase notes below remain historical evidence.
 | Ordinary / capped / Slippery / HardenedShell / Intangible Poison pre-action survival | Implemented, Conditional | enemy AttackIntent inclusion, total `-N` | `PoisonPower.AfterSideTurnStart`, `TriggerCount`, `CalculateTotalDamageNextTurn`, enemy action after side-turn start, `HardenedShellPower.DisplayAmount` | `EnemyPreActionSurvivalPreview`, `PoisonTickPreview` | Exoskeleton / HardToKill, Slippery / 墨宝, HardenedShell / SewerClam, and the representative TestSubject phase-3 Intangible exact-lethal boundary are RuntimeVerified in Phase 11C; full ordinary and special-combination matrices are not fully backfilled | Active enemy Intangible uses the narrow trigger-count rule unless combined with HardToKill, Slippery, or HardenedShell, in which case it keeps base Intent. Nemesis / ToughEgg remain pending family-specific runtime captures. |
 | Phase 13A incoming-damage projection | Implemented, Conditional | optional positive `N` display | Same trusted source readers; user-selected current Block, Power/Orb Block, relic Block, Power modifier, and relic modifier categories | `LocalIncomingDamageReader.ReadIncomingDamageForLocalCreature(...)`, `IncomingDamageDisplayOptions`, `ForecastHudSnapshot` | Built, installed, and settings-page RuntimeVerified; full combat/lifecycle matrix not fully backfilled | `N` is a forward projection, not a reverse calculation from `-N`; unsupported selected paths hide `N` instead of showing a partial total. |
 | Local HUD in multiplayer | Implemented, Conditional | display only | local health bar / local player identity | `DamageForecastHudVisibilityPolicy`, `ForecastRefreshPatch`, `DamageForecastUiSettings.ShowLocalHudInMultiplayer` | Workshop subscription runtime evidence for local `-6` HUD | Not teammate HUD, not shared HUD, no network behavior. |
+
+## Beta v0.110.0 target-specific mechanics drift
+
+This section records B110-0 executable evidence for
+`v0.110.0 / eecc8c4d` relative to frozen beta
+`v0.109.0 / c12f634d`. It does not rewrite stable or older beta runtime
+evidence.
+
+| Mechanism | Drift | v0.110.0 executable evidence | Damage Forecast boundary |
+| --- | --- | --- | --- |
+| `PoisonPower` | Signature drift; existing preview body unchanged | New public `Trigger()` owns the tick/decrement loop; `AfterSideTurnStart` delegates to it. `CalculateTotalDamageNextTurn()` keeps the same signature and normalized method body. | Existing next-turn Poison total and pre-action survival readers are not proven broken. Current v0.110.0 game runtime remains unverified. |
+| `Outbreak` | Semantic drift | The old card applied `OutbreakPower` to its owner. v0.110.0 removes `OutbreakPower`; the card now applies `PoisonPower` to every hittable enemy and then calls each enemy's `PoisonPower.Trigger()`. Constructor values and the dynamic variable also changed. | Current forecast does not replay card play. Any future hypothetical-card feature must treat this multi-target immediate Poison/Trigger command sequence as unsupported until explicitly modeled and verified. |
+| `ToughEgg.Hatch` | Semantic drift | The upper HP bound passed to `Rng.NextInt` is incremented by one, changing the hatch range from upper-exclusive to upper-inclusive. | Damage Forecast does not simulate hatch RNG. Existing ToughEgg Poison lifecycle support remains conditional and its family-specific runtime capture remains pending/Unknown. |
+| `Sidestep` / `Scare` | Added / Removed | `Sidestep` is new and applies next-turn Energy; `Scare`, which applied Weak to all hittable enemies, is removed. | Neither change breaks a current direct reader. Future card-play preview must discover current-target card semantics rather than inherit the frozen-beta card set. |
+
+The v0.110.0 audit found no top-level relic, Monster, Encounter, or Intent type
+addition/removal relative to v0.109.0. Other method-body drift is not promoted
+to a supported or broken forecast claim unless it crosses a current trusted
+reader boundary.
 
 ## Phase 13A incoming-damage projection
 

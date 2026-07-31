@@ -1,9 +1,11 @@
 param(
     [ValidateSet("all", "stable", "beta")]
     [string]$Target = "all",
+    [switch]$Current,
     [string]$SnapshotRoot = "",
     [string]$StableReferenceRoot = "",
     [string]$BetaReferenceRoot = "",
+    [string]$CurrentReferenceRoot = "",
     [string]$BaseLibReferencePath = ""
 )
 
@@ -21,7 +23,8 @@ function Resolve-SnapshotReferenceRoot {
     param(
         [string]$Root,
         [string]$TargetName,
-        [string]$ExpectedVersion
+        [string]$ExpectedVersion,
+        [string]$ExpectedCommit = ""
     )
 
     if (-not (Test-Path -LiteralPath $Root)) {
@@ -35,7 +38,9 @@ function Resolve-SnapshotReferenceRoot {
         }
 
         $releaseInfo = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseInfoPath | ConvertFrom-Json
-        if ($releaseInfo.version -eq $ExpectedVersion) {
+        if ($releaseInfo.version -eq $ExpectedVersion `
+                -and ([string]::IsNullOrWhiteSpace($ExpectedCommit) `
+                    -or $releaseInfo.commit -eq $ExpectedCommit)) {
             Join-Path $snapshot.FullName "data_sts2_windows_x86_64"
         }
     })
@@ -45,6 +50,124 @@ function Resolve-SnapshotReferenceRoot {
     }
 
     return $snapshotMatches[0]
+}
+
+function Get-ManagedAssemblyIdentity {
+    param(
+        [string]$Path,
+        [string]$ExpectedName,
+        [string]$ExpectedVersion
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Required runtime dependency missing: $Path"
+    }
+
+    try {
+        $identity = [System.Reflection.AssemblyName]::GetAssemblyName($Path)
+    }
+    catch {
+        throw "Runtime dependency is not a readable managed assembly: $Path. $($_.Exception.Message)"
+    }
+
+    $actualVersion = $identity.Version.ToString()
+    if ($identity.Name -ne $ExpectedName -or $actualVersion -ne $ExpectedVersion) {
+        throw "Runtime dependency identity mismatch for $Path. Expected $ExpectedName/$ExpectedVersion; found $($identity.Name)/$actualVersion."
+    }
+
+    return [pscustomobject]@{
+        Name = $identity.Name
+        Version = $actualVersion
+        File = [System.IO.Path]::GetFileName($Path)
+        Path = $Path
+        SHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash
+    }
+}
+
+function Test-CurrentReferenceClosure {
+    param([string]$ReferenceRoot)
+
+    $releaseInfoPath = Join-Path (Split-Path -Parent $ReferenceRoot) "release_info.json"
+    if (-not (Test-Path -LiteralPath $releaseInfoPath)) {
+        throw "current reference root is missing release_info.json beside its managed directory: $releaseInfoPath"
+    }
+
+    $releaseInfo = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseInfoPath | ConvertFrom-Json
+    if ($releaseInfo.version -ne "v0.110.0" -or $releaseInfo.commit -ne "eecc8c4d") {
+        throw "current reference identity mismatch. Expected v0.110.0/eecc8c4d; found $($releaseInfo.version)/$($releaseInfo.commit)."
+    }
+
+    $requirements = @(
+        @{ Name = "Sentry"; Version = "6.7.0.0"; File = "Sentry.dll" },
+        @{ Name = "Sentry.Godot"; Version = "1.0.0.0"; File = "Sentry.Godot.dll" }
+    )
+    $dependencies = @()
+    foreach ($requirement in $requirements) {
+        $dependencies += Get-ManagedAssemblyIdentity `
+            -Path (Join-Path $ReferenceRoot $requirement.File) `
+            -ExpectedName $requirement.Name `
+            -ExpectedVersion $requirement.Version
+    }
+
+    Write-Host "QUALITY target=current step=dependency-closure version=$($releaseInfo.version) commit=$($releaseInfo.commit) dependencies=$($dependencies.Count) exit_code=0"
+    foreach ($dependency in $dependencies) {
+        Write-Host "QUALITY target=current dependency=$($dependency.Name) version=$($dependency.Version) sha256=$($dependency.SHA256) exit_code=0"
+    }
+
+    return $dependencies
+}
+
+function Get-ReferenceFingerprint {
+    param([string[]]$Paths)
+
+    $rows = foreach ($path in $Paths) {
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
+        "$([System.IO.Path]::GetFileName($path))=$hash"
+    }
+    $material = ($rows | Sort-Object) -join "|"
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($material)
+        return -join ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString("x2") })
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+function Test-GeneratedContractDependencies {
+    param(
+        [string]$DepsPath,
+        [object[]]$ExpectedDependencies
+    )
+
+    if (-not (Test-Path -LiteralPath $DepsPath)) {
+        throw "Generated contract dependency file not found: $DepsPath"
+    }
+
+    $deps = Get-Content -Raw -Encoding UTF8 -LiteralPath $DepsPath | ConvertFrom-Json
+    $targetProperties = @($deps.targets.PSObject.Properties)
+    if ($targetProperties.Count -ne 1) {
+        throw "Expected exactly one generated contract dependency target in $DepsPath; found $($targetProperties.Count)."
+    }
+
+    $target = $targetProperties[0].Value
+    foreach ($dependency in $ExpectedDependencies) {
+        $libraryKey = "$($dependency.Name)/$($dependency.Version)"
+        $library = $target.PSObject.Properties[$libraryKey]
+        if ($null -eq $library) {
+            throw "Generated contract dependency file is missing $libraryKey."
+        }
+
+        $runtimeFiles = @($library.Value.runtime.PSObject.Properties | Where-Object {
+            $_.Name -eq $dependency.File -or $_.Name.EndsWith("/$($dependency.File)")
+        })
+        if ($runtimeFiles.Count -ne 1) {
+            throw "Generated contract dependency $libraryKey does not contain exactly one $($dependency.File) runtime asset."
+        }
+    }
+
+    Write-Host "QUALITY target=current step=generated-deps dependencies=$($ExpectedDependencies.Count) exit_code=0"
 }
 
 function Invoke-DotnetStep {
@@ -101,28 +224,52 @@ if ([string]::IsNullOrWhiteSpace($BaseLibReferencePath)) {
 & $baseLibBootstrap -Destination $BaseLibReferencePath
 
 $targets = @()
-if ($Target -in @("all", "stable")) {
-    if ([string]::IsNullOrWhiteSpace($StableReferenceRoot)) {
-        $StableReferenceRoot = Resolve-SnapshotReferenceRoot -Root $SnapshotRoot -TargetName "stable" -ExpectedVersion "v0.107.1"
+if ($Current) {
+    if ($PSBoundParameters.ContainsKey("Target")) {
+        throw "Use either -Current or -Target, not both."
     }
-    $targets += [pscustomobject]@{ Name = "stable"; ReferenceRoot = $StableReferenceRoot }
+    if ([string]::IsNullOrWhiteSpace($CurrentReferenceRoot)) {
+        $CurrentReferenceRoot = Resolve-SnapshotReferenceRoot `
+            -Root $SnapshotRoot `
+            -TargetName "current" `
+            -ExpectedVersion "v0.110.0" `
+            -ExpectedCommit "eecc8c4d"
+    }
+    $targets += [pscustomobject]@{ Name = "current"; ReferenceRoot = $CurrentReferenceRoot }
 }
-if ($Target -in @("all", "beta")) {
-    if ([string]::IsNullOrWhiteSpace($BetaReferenceRoot)) {
-        $BetaReferenceRoot = Resolve-SnapshotReferenceRoot -Root $SnapshotRoot -TargetName "beta" -ExpectedVersion "v0.109.0"
+else {
+    if ($Target -in @("all", "stable")) {
+        if ([string]::IsNullOrWhiteSpace($StableReferenceRoot)) {
+            $StableReferenceRoot = Resolve-SnapshotReferenceRoot -Root $SnapshotRoot -TargetName "stable" -ExpectedVersion "v0.107.1"
+        }
+        $targets += [pscustomobject]@{ Name = "stable"; ReferenceRoot = $StableReferenceRoot }
     }
-    $targets += [pscustomobject]@{ Name = "beta"; ReferenceRoot = $BetaReferenceRoot }
+    if ($Target -in @("all", "beta")) {
+        if ([string]::IsNullOrWhiteSpace($BetaReferenceRoot)) {
+            $BetaReferenceRoot = Resolve-SnapshotReferenceRoot -Root $SnapshotRoot -TargetName "beta" -ExpectedVersion "v0.109.0"
+        }
+        $targets += [pscustomobject]@{ Name = "beta"; ReferenceRoot = $BetaReferenceRoot }
+    }
 }
 
 foreach ($targetInput in $targets) {
+    $referencePaths = @()
     foreach ($file in @("sts2.dll", "GodotSharp.dll", "0Harmony.dll")) {
         $reference = Join-Path $targetInput.ReferenceRoot $file
         if (-not (Test-Path -LiteralPath $reference)) {
             throw "$($targetInput.Name) reference root missing ${file}: $reference"
         }
+        $referencePaths += $reference
     }
 
-    $contractArtifactsPath = Join-Path $scratchRoot "contract-artifacts/$($targetInput.Name)/"
+    $runtimeDependencies = @()
+    if ($targetInput.Name -eq "current") {
+        $runtimeDependencies = @(Test-CurrentReferenceClosure -ReferenceRoot $targetInput.ReferenceRoot)
+        $referencePaths += @($runtimeDependencies | ForEach-Object { $_.Path })
+    }
+
+    $referenceFingerprint = Get-ReferenceFingerprint -Paths $referencePaths
+    $contractArtifactsPath = Join-Path $scratchRoot "contract-artifacts/$($targetInput.Name)-$($referenceFingerprint.Substring(0, 16))/"
     $contractDuration = Invoke-DotnetStep -TargetName $targetInput.Name -Step "contract" -Arguments @(
         "run",
         "--project", $contractProjectPath,
@@ -131,6 +278,13 @@ foreach ($targetInput in $targets) {
         "-p:Sts2ReferenceRoot=$($targetInput.ReferenceRoot)",
         "-p:BaseLibReferencePath=$BaseLibReferencePath"
     )
+
+    if ($targetInput.Name -eq "current") {
+        $generatedDepsPath = Join-Path $contractArtifactsPath "bin/DamageForecast.ContractTests/release/DamageForecast.ContractTests.deps.json"
+        Test-GeneratedContractDependencies `
+            -DepsPath $generatedDepsPath `
+            -ExpectedDependencies $runtimeDependencies
+    }
 
     $buildOutput = Join-Path $scratchRoot "bin/$($targetInput.Name)/"
     $intermediateOutput = Join-Path $scratchRoot "obj/$($targetInput.Name)/"

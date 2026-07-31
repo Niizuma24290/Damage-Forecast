@@ -24,6 +24,27 @@ N = ForecastResult.OutDamage + ForecastResult.DirectHpLoss
 
 Damage Forecast does not simulate a full turn, does not call real damage or command execution paths, and does not modify combat state, saves, network state, cards, powers, relics, or room state.
 
+## Current Target Compatibility
+
+- The immutable stable regression target remains `v0.107.1 / 59260271`; the
+  frozen comparison beta remains `v0.109.0 / c12f634d`.
+- The frozen current authority is `v0.110.0 / eecc8c4d`; its exact snapshot
+  includes `sts2.deps.json`, `Sentry 6.7.0.0`, and `Sentry.Godot 1.0.0.0`.
+  The separately selected stock `-Current` guardrail validates this identity,
+  dependency closure, generated contract deps, Release build, and ordinary
+  two-file artifact. At B110-2 checkpoint all three targets passed the
+  then-current `481/481` contracts with 0 warnings / 0 errors.
+- The live Steam `public-beta` later advanced to unannounced BuildID `24489008`
+  whose files self-report `v0.110.1 / db5d3552`. B110-3 found no
+  forecast-relevant public-API, content-family, or normalized-IL drift; the
+  current shared candidate passed `482/482` and built with 0 warnings / 0
+  errors. No official patch notes were available, so this build is not frozen
+  as a new current authority and the exact v0.110.0 gate rejects it.
+- Current disposition is static/contract/build compatible. The B110 audit did
+  not launch the game and does not independently claim broad runtime
+  compatibility. Separate HUD I2-R10 user evidence verifies only the tested HUD
+  placement/freeze scenarios on the locally installed BuildID `24489008`.
+
 ## Current HUD Behavior
 
 - Default HUD line: total expected HP loss `-N`.

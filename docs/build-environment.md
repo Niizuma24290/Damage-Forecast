@@ -173,6 +173,42 @@ Phase 9 task cards use only the explicit commands above. Do not use `STS2PartyWa
 - Current stable baseline: v0.107.1 / branch `v0.107.1` / commit `59260271`, captured from the old `work/reflect/bin/Debug/net9.0` reference candidate; `sts2.xml` shows the stable hook surface with `Hook.BeforeTurnEnd` and 10-argument `Hook.ModifyDamage`. Build passed with 0 warnings and 0 errors.
 - The shared mod manifest sets `min_game_version` to `0.107.1`, so it applies to both baselines; API selection comes from the reference DLLs, not from separate manifest JSON files.
 
+### Current beta v0.110.0 compatibility evidence
+
+- The frozen current authority is `v0.110.0 / eecc8c4d /
+  2026-07-30T19:54:36-07:00`, stored under
+  `STS2-reference-snapshots/v0.110.0-beta-eecc8c4d`. It is an additional
+  compatibility target; it does not replace frozen stable `v0.107.1` or
+  frozen beta `v0.109.0`.
+- Its `sts2.dll` SHA256 is
+  `7A2592364FDC6FF4C42BB5F1FF41F9FA12155F84DE772E203ACE1B088EBB607D`.
+  The snapshot also freezes `sts2.deps.json`, `Sentry.dll 6.7.0.0`, and
+  `Sentry.Godot.dll 1.0.0.0` with managed identity and SHA256 evidence.
+- `Save-Sts2ReferenceSnapshot.ps1` fails closed on missing or mismatched current
+  runtime dependencies. `Test-ForecastGuardrails.ps1 -Current` locks the exact
+  `v0.110.0 / eecc8c4d` identity, fingerprints all direct/runtime references,
+  and verifies that the generated contract `.deps.json` contains both Sentry
+  runtime assets.
+- At B110-2 checkpoint, stable `v0.107.1`, frozen beta `v0.109.0`, and frozen
+  current `v0.110.0` each passed the then-current `481/481` contracts and
+  Release build with 0 warnings / 0 errors. Historical B110-0 `477/477`
+  investigation-host evidence is superseded by this stock guardrail closure.
+- The B110-0 source snapshot's current-target Release build passes with
+  0 warnings / 0 errors, no runtime shadow owners, and a strict two-file
+  artifact. DLL SHA256 is
+  `9021C7E5D72A08161834A5B55F95F2CAABB0A28316E98B9C8C3E6EC894330A8D`;
+  manifest SHA256 is
+  `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`.
+  These hashes are checkpoint evidence, not a claim about later shared-worktree
+  candidates.
+- The live Steam `public-beta` later advanced to unannounced BuildID `24489008`
+  whose files self-report `v0.110.1 / db5d3552`. B110-3 found no forecast-path
+  API or normalized-IL drift and the shared candidate passed `482/482`, but
+  this unannounced build is not a current snapshot authority and is rejected by
+  the exact `-Current` identity gate.
+- Runtime dependencies belong only to snapshot/contract execution. Never copy
+  Sentry DLLs or `.deps.json` into the mod's strict two-file published tree.
+
 ## Contract tests
 
 The authoritative local quality gate is:
@@ -188,6 +224,10 @@ then runs `git diff --check` and tracked/working-tree forbidden-artifact review.
 It prints per-target case summaries, durations, exit codes, and one final
 `QUALITY_GATE` result. For development only, pass `-Target stable` or
 `-Target beta`; closure requires the default dual-target run.
+
+The default authoritative gate still targets the two frozen stable/beta
+snapshots. Use the separate `-Current` switch for the frozen exact
+`v0.110.0 / eecc8c4d` target; do not pass `-Current` together with `-Target`.
 
 The gate writes only ignored build/intermediate data below
 `work/forecast-guardrails/`. It does not publish, install, launch the game, or

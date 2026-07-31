@@ -12,6 +12,36 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ManagedAssemblyIdentity {
+    param(
+        [string]$Path,
+        [string]$ExpectedName,
+        [string]$ExpectedVersion
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Required runtime dependency missing: $Path"
+    }
+
+    try {
+        $identity = [System.Reflection.AssemblyName]::GetAssemblyName($Path)
+    }
+    catch {
+        throw "Runtime dependency is not a readable managed assembly: $Path. $($_.Exception.Message)"
+    }
+
+    $actualVersion = $identity.Version.ToString()
+    if ($identity.Name -ne $ExpectedName -or $actualVersion -ne $ExpectedVersion) {
+        throw "Runtime dependency identity mismatch for $Path. Expected $ExpectedName/$ExpectedVersion; found $($identity.Name)/$actualVersion."
+    }
+
+    return [pscustomobject]@{
+        Name = $identity.Name
+        Version = $actualVersion
+        File = [System.IO.Path]::GetFileName($Path)
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($ReferenceRoot)) {
     $managedDir = Join-Path $GameRoot "data_sts2_windows_x86_64"
 }
@@ -74,6 +104,40 @@ $files = @(
     @{ Source = (Join-Path $managedDir "0Harmony.dll"); Destination = (Join-Path $snapshotManagedDir "0Harmony.dll") }
 )
 
+$runtimeDependencies = @()
+$runtimeDependencyRequirements = @()
+if ($releaseInfo.version -eq "v0.110.0") {
+    $runtimeDependencyRequirements = @(
+        @{ Name = "Sentry"; Version = "6.7.0.0"; File = "Sentry.dll" },
+        @{ Name = "Sentry.Godot"; Version = "1.0.0.0"; File = "Sentry.Godot.dll" }
+    )
+}
+
+$depsSource = Join-Path $managedDir "sts2.deps.json"
+if (Test-Path -LiteralPath $depsSource) {
+    $files += @{
+        Source = $depsSource
+        Destination = (Join-Path $snapshotManagedDir "sts2.deps.json")
+    }
+}
+
+foreach ($requirement in $runtimeDependencyRequirements) {
+    $source = Join-Path $managedDir $requirement.File
+    $identity = Get-ManagedAssemblyIdentity `
+        -Path $source `
+        -ExpectedName $requirement.Name `
+        -ExpectedVersion $requirement.Version
+    $runtimeDependencies += [pscustomobject]@{
+        name = $identity.Name
+        version = $identity.Version
+        file = $identity.File
+    }
+    $files += @{
+        Source = $source
+        Destination = (Join-Path $snapshotManagedDir $requirement.File)
+    }
+}
+
 foreach ($file in $files) {
     if (-not (Test-Path -LiteralPath $file.Source)) {
         throw "Required snapshot source missing: $($file.Source)"
@@ -101,6 +165,7 @@ $manifest = [pscustomobject]@{
     version = $releaseInfo.version
     branch = $releaseInfo.branch
     commit = $releaseInfo.commit
+    runtime_dependencies = $runtimeDependencies
     files = $hashRows
 }
 

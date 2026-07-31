@@ -30,5 +30,15 @@
       <HintPath>$(Sts2ReferenceRoot)\0Harmony.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Reference Include="Sentry" Condition="Exists('$(Sts2ReferenceRoot)\Sentry.dll')">
+      <HintPath>$(Sts2ReferenceRoot)\Sentry.dll</HintPath>
+      <Private>true</Private>
+      <IncludeRuntimeDependency>true</IncludeRuntimeDependency>
+    </Reference>
+    <Reference Include="Sentry.Godot" Condition="Exists('$(Sts2ReferenceRoot)\Sentry.Godot.dll')">
+      <HintPath>$(Sts2ReferenceRoot)\Sentry.Godot.dll</HintPath>
+      <Private>true</Private>
+      <IncludeRuntimeDependency>true</IncludeRuntimeDependency>
+    </Reference>
   </ItemGroup>
 </Project>
