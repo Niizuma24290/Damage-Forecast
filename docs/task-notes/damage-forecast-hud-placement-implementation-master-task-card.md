@@ -2,17 +2,17 @@
 
 ## Current Control
 
-Classification: CHECKPOINT_TASK
+Classification: CLOSED_TASK
 Area: Combat UI
 Touches: Hub UI、Settings Compatibility
 Priority Tag: P2
 Queue: Parked
-State: Work Complete / I2-R11 Checkpoint Pending
-Last completed: I2-R11 — Multiplayer HUD Runtime Verification
-Next: 建立已授权的 I2-R11 本地 Git checkpoint，并同步最终 Closed authority
+State: Closed
+Last completed: I2-R11 — Runtime Verification / Repository Closure
+Next: None
 Approved: 既有 I0～I3，以及 I2-R11 源码、contract、构建、安装、用户运行验证与本地 Git checkpoint；Codex 游戏启动、push、tag、Workshop 和发布未批准
-Evidence: `I2-R11 Runtime Verified Checkpoint — 2026-08-02`
-Repository: Existing checkpoints `a4b2e23` / `d088aed`; I2-R11 checkpoint pending on baseline `8c163c0`
+Evidence: `I2-R11 Final Closure Checkpoint — 2026-08-02`
+Repository: Existing checkpoints `a4b2e23` / `d088aed`; I2-R11 implementation checkpoint `5e866d6`
 
 ## Goal
 
@@ -459,7 +459,7 @@ Repository: Implementation checkpoint `a4b2e23`; closure marker is the docs-only
 
 ## Gate I2-R11 — Multiplayer LocalReadyWaiting Freeze Repair + End-turn HUD Up 6
 
-Status: RuntimeVerified / Checkpoint Pending
+Status: Complete / RuntimeVerified / Repository Closed
 
 ### I2-R11 Approval / Reopen Record — 2026-08-01
 
@@ -507,3 +507,18 @@ Status: RuntimeVerified / Checkpoint Pending
 - Verified boundary: 本次 `RuntimeVerified` 只覆盖用户实际确认的多人本机 HUD 等待更新与最终冻结目标；不把此前建议矩阵中的 Block、Weak/Strength、敌人死亡、取消/重复准备等每个子项分别写成已验证。
 - Preserved evidence: 安装版本与哈希继续引用 `I2-R11 Installed Checkpoint`；headless contracts、stable/beta/current build 与 guardrail 继续引用 `I2-R11 Headless Checkpoint`，不重复复制。
 - Closure authority: 用户同时明确要求 HUD session 收口，并授权 I2-R11 自有源码、contracts、任务卡及精确共享 authority hunk 的本地 Git checkpoint；push、tag、Workshop、发布、重新构建、重新安装和游戏启动仍未授权。
+
+### I2-R11 Final Closure Checkpoint — 2026-08-02
+
+- Result: I2-R11 多人本机 `LocalReadyWaiting` 更新与玩家方真实回合边界冻结已完成；用户对已安装版本明确反馈运行验证“成功”。本记录只绑定用户实际确认的多人 HUD 等待更新与最终冻结目标，不把建议矩阵中的每个子项分别声明为已验证。
+- Repository: I2-R11 自有实现与合同已建立本地 implementation checkpoint `5e866d6996fa4618a2585cc5a0ff96c0992ab3e6`（`fix(forecast): freeze multiplayer HUD at side-turn boundary`）。
+- Isolated inventory: checkpoint 只包含本卡、`ForecastRefreshPatch.cs` 与 `DamageForecastHudSnapshotStore.cs` 的 I2-R11 精确共享 hunk、`HudLayoutEngine.cs`、`HudSnapshotLifecyclePolicy.cs` 及两份 HUD contracts；未夹带 Shadowmeld、Debug Trace、多人敌人死亡诊断、Forecast Timeline / architecture、BaseLib、Workshop 或其他 dirty worktree 内容。
+- Verification: 复用本卡 I2-R11 Headless Checkpoint 的 `486/486` contracts、stable/beta/current Release build 与 guardrail PASS 证据，并新增用户本次运行结果；收口阶段未重新构建、重新安装或启动游戏。
+- External boundary: 未执行 push、tag、Workshop 或发布；其他共享 dirty changes 保持未暂存、未修改。
+
+## I2-R11 Final closure
+
+Result: 多人本机结束回合后的等待更新与真实玩家方回合边界冻结已交付，并由用户对已安装版本确认运行验证成功
+Current state: Closed；RuntimeVerified 仅覆盖用户实际报告的多人 HUD 等待更新与最终冻结目标，未单独认领建议矩阵全部子项
+Authority: 本卡与 `docs/task-notes/README.md` 路由
+Repository: Implementation checkpoint `5e866d6996fa4618a2585cc5a0ff96c0992ab3e6`; closure marker is the docs-only commit containing this record
