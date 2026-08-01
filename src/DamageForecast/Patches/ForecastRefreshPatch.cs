@@ -1026,9 +1026,13 @@ internal static class ForecastActionRefreshSubscription
         _subscribedExecutor = null;
     }
 
-    private static void AfterActionExecuted(GameAction _)
+    private static void AfterActionExecuted(GameAction action)
     {
-        if (DamageForecastHudSnapshotStore.IsLocalReadyWaiting)
+        var phase = DamageForecastHudSnapshotStore.DiagnosticState.Phase;
+        var isCompletedPlayCard = action is PlayCardAction;
+        if (ForecastActionRefreshPolicy.ShouldRefresh(
+                phase,
+                isCompletedPlayCard))
         {
             ForecastRefreshPatch.RefreshRegisteredBars();
         }

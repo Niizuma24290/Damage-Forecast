@@ -17,15 +17,36 @@ internal static class VerifiedPreAttackBlockReader
     {
         try
         {
-            var powerBlock = 0;
-            powerBlock += ReadFrostBlock(player);
-            powerBlock += ReadPlatingBlock(localCreature);
+            var powerGrants = ReadFrostBlockGrants(player);
+            AddPositive(powerGrants, ReadPlatingBlock(localCreature));
 
-            var relicBlock = 0;
-            relicBlock += ReadOrichalcumBlock(player, localCreature.Block);
-            relicBlock += ReadFakeOrichalcumBlock(player, localCreature.Block);
-            relicBlock += ReadRippleBasinBlock(player, localCreature.CombatState!);
-            relicBlock += ReadCloakClaspBlock(player);
+            var endTurnBoundaryBlock = localCreature.Block;
+            var relicGrants = new List<int>();
+            AddPositive(
+                relicGrants,
+                ReadOrichalcumBlock(player, endTurnBoundaryBlock));
+            AddPositive(
+                relicGrants,
+                ReadFakeOrichalcumBlock(player, endTurnBoundaryBlock));
+            AddPositive(
+                relicGrants,
+                ReadRippleBasinBlock(player, localCreature.CombatState!));
+            AddPositive(relicGrants, ReadCloakClaspBlock(player));
+
+            if (powerGrants.Count == 0 && relicGrants.Count == 0)
+            {
+                return PreAttackBlockRead.Known(0, 0);
+            }
+
+            var modifier = VerifiedShadowmeldFutureBlockModifier.Read(
+                localCreature);
+            if (modifier.State != ShadowmeldFutureBlockModifierReadState.Known
+                || !TrySumModified(powerGrants, modifier, out var powerBlock)
+                || !TrySumModified(relicGrants, modifier, out var relicBlock))
+            {
+                return PreAttackBlockRead.Unknown;
+            }
+
             return PreAttackBlockRead.Known(powerBlock, relicBlock);
         }
         catch
@@ -34,21 +55,21 @@ internal static class VerifiedPreAttackBlockReader
         }
     }
 
-    private static int ReadFrostBlock(Player player)
+    private static List<int> ReadFrostBlockGrants(Player player)
     {
+        var grants = new List<int>();
         var orbs = player.PlayerCombatState?.OrbQueue?.Orbs;
         if (orbs is null)
         {
-            return 0;
+            return grants;
         }
 
-        var block = 0;
         foreach (var orb in orbs.OfType<FrostOrb>())
         {
-            block += Math.Max(0, (int)orb.PassiveVal);
+            AddPositive(grants, Math.Max(0, (int)orb.PassiveVal));
         }
 
-        return block;
+        return grants;
     }
 
     private static int ReadPlatingBlock(Creature localCreature)
@@ -99,7 +120,9 @@ internal static class VerifiedPreAttackBlockReader
         }
 
         var handPile = CardPile.Get(PileType.Hand, player);
-        return handPile is null ? 0 : handPile.Cards.Count * ReadBlockVar(relic);
+        return handPile is null
+            ? 0
+            : checked(handPile.Cards.Count * ReadBlockVar(relic));
     }
 
     private static bool HasPlayedAttackThisTurn(Player player, ICombatState combatState)
@@ -135,6 +158,34 @@ internal static class VerifiedPreAttackBlockReader
     private static int ReadBlockVar(RelicModel relic)
     {
         return relic.DynamicVars.Values.OfType<BlockVar>().Select(blockVar => Math.Max(0, (int)blockVar.BaseValue)).FirstOrDefault();
+    }
+
+    private static void AddPositive(List<int> grants, int amount)
+    {
+        if (amount > 0)
+        {
+            grants.Add(amount);
+        }
+    }
+
+    private static bool TrySumModified(
+        IReadOnlyList<int> grants,
+        ShadowmeldFutureBlockModifierRead modifier,
+        out int total)
+    {
+        total = 0;
+        foreach (var grant in grants)
+        {
+            if (!modifier.TryApply(grant, out var modified))
+            {
+                total = 0;
+                return false;
+            }
+
+            total = checked(total + modified);
+        }
+
+        return true;
     }
 }
 

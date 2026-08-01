@@ -373,6 +373,8 @@ cases.AddRange(HandCardDamageContractCases.Create());
 cases.AddRange(ProjectionContractCases.Create());
 cases.AddRange(BlockPolicyContractCases.Create());
 cases.AddRange(FeelNoPainContractCases.Create());
+cases.AddRange(ShadowmeldFutureBlockContractCases.Create());
+cases.AddRange(ShadowmeldRuntimeRegressionContractCases.Create());
 cases.AddRange(HpLossModifierContractCases.Create());
 cases.AddRange(PoisonPolicyContractCases.Create());
 cases.AddRange(LifecycleContractCases.Create());

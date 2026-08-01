@@ -78,11 +78,12 @@ internal static class VerifiedEtherealExhaustBlockReader
                     prediction));
             }
 
-            return VerifiedEtherealExhaustBlockPolicy.Evaluate(
+            var futureBlock = VerifiedEtherealExhaustBlockPolicy.Evaluate(
                 new EtherealExhaustBlockInput(
                     FeelNoPainPowerReadState.Known,
                     blockPerExhaust,
                     cards));
+            return ApplyShadowmeld(localCreature, futureBlock);
         }
         catch (Exception exception)
         {
@@ -94,6 +95,37 @@ internal static class VerifiedEtherealExhaustBlockReader
     internal static int GetHandTurnEndEffectOrder(int handIndex)
     {
         return checked(handIndex * 2);
+    }
+
+    private static EtherealExhaustBlockRead ApplyShadowmeld(
+        Creature localCreature,
+        EtherealExhaustBlockRead futureBlock)
+    {
+        if (futureBlock.State != EtherealExhaustBlockReadState.Known
+            || futureBlock.Events.Count == 0)
+        {
+            return futureBlock;
+        }
+
+        var modifier = VerifiedShadowmeldFutureBlockModifier.Read(
+            localCreature);
+        if (modifier.State != ShadowmeldFutureBlockModifierReadState.Known)
+        {
+            return EtherealExhaustBlockRead.Unknown;
+        }
+
+        var events = new List<UpcomingBlockEvent>(futureBlock.Events.Count);
+        foreach (var blockEvent in futureBlock.Events)
+        {
+            if (!modifier.TryApply(blockEvent.Amount, out var modifiedAmount))
+            {
+                return EtherealExhaustBlockRead.Unknown;
+            }
+
+            events.Add(blockEvent with { Amount = modifiedAmount });
+        }
+
+        return EtherealExhaustBlockRead.Known(events);
     }
 
     private static bool HasPendingStampedeAutoPlay(

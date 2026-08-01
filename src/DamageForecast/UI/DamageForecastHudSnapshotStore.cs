@@ -12,6 +12,8 @@ internal static class DamageForecastHudSnapshotStore
     internal static bool IsLocalReadyWaiting =>
         _state.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting;
 
+    internal static HudSnapshotLifecycleState DiagnosticState => _state;
+
     public static void OnPlayerSideTurnStarted(Player player, Creature creature)
     {
         _state = HudSnapshotLifecyclePolicy.StartPlayerTurn(IdentityOf(player, creature));
