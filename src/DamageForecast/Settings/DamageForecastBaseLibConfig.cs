@@ -1,7 +1,6 @@
 using BaseLib.Config;
 using BaseLib.Config.UI;
 using Godot;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using System.Reflection;
 using DamageForecast.Patches;
 using DamageForecast.UI;
@@ -10,6 +9,9 @@ namespace DamageForecast.Settings;
 
 internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
 {
+    internal const float ClosedDropdownArrowSafeInset = 42f;
+    internal const float ClosedDropdownFallbackWidth = 324f;
+
     private static readonly string[] PropertyOrder = HudPlacementConfigSchema.V1PropertyOrder;
     private static readonly string[] LocalizationPropertyOrder = HudPlacementConfigSchema.V2PropertyOrder;
 
@@ -25,6 +27,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
     private readonly Dictionary<string, Control> _settingRows = [];
     private readonly Dictionary<string, Control> _settingControls = [];
     private readonly Dictionary<string, Control> _sectionHeaders = [];
+    private readonly Dictionary<ulong, DropdownFontBaseline> _dropdownFontBaselines = [];
     private Control? _optionContainer;
 
     public static DamageForecastConfigLanguage ConfigLanguage
@@ -177,6 +180,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
         _settingRows.Clear();
         _settingControls.Clear();
         _sectionHeaders.Clear();
+        _dropdownFontBaselines.Clear();
         ConfigChanged -= OnConfigChanged;
         ConfigChanged += OnConfigChanged;
 
@@ -253,7 +257,14 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
                 && IsDropdownProperty(propertyName))
             {
                 ApplyDropdownItemSourceText(settingControl, propertyName);
-                SetFirstText(settingControl, DamageForecastConfigText.EnumValue(propertyName, GetPropertyValue(propertyName), ConfigLanguage));
+                var value = GetPropertyValue(propertyName);
+                var currentValueText = SetFirstTextAndGetControl(
+                    settingControl,
+                    DamageForecastConfigText.EnumValue(propertyName, value, ConfigLanguage));
+                if (currentValueText is not null)
+                {
+                    ApplyClosedDropdownFont(currentValueText, propertyName, value);
+                }
             }
         }
     }
@@ -291,6 +302,30 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
                 }
             }
         }
+    }
+
+    private static Control? SetFirstTextAndGetControl(Node node, string text)
+    {
+        switch (node)
+        {
+            case Label label:
+                label.Text = text;
+                return label;
+            case RichTextLabel richTextLabel:
+                richTextLabel.Text = text;
+                return richTextLabel;
+        }
+
+        foreach (var child in node.GetChildren())
+        {
+            if (child is Node childNode
+                && SetFirstTextAndGetControl(childNode, text) is { } textControl)
+            {
+                return textControl;
+            }
+        }
+
+        return null;
     }
 
     private static void SetFirstTextOutside(Node node, Node excludedSubtree, string text)
@@ -374,6 +409,111 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
         }
     }
 
+    private void ApplyClosedDropdownFont(Control textControl, string propertyName, object? value)
+    {
+        if (!IsClosedDropdownFontManagedProperty(propertyName))
+        {
+            return;
+        }
+
+        var fontSizeName = textControl is RichTextLabel ? "normal_font_size" : "font_size";
+        var instanceId = textControl.GetInstanceId();
+        var hasLocalOverride = textControl.HasThemeFontSizeOverride(fontSizeName);
+        var currentFontSize = textControl.GetThemeFontSize(fontSizeName);
+        if (!_dropdownFontBaselines.TryGetValue(instanceId, out var baseline))
+        {
+            baseline = new DropdownFontBaseline(
+                fontSizeName,
+                hasLocalOverride,
+                currentFontSize);
+            _dropdownFontBaselines[instanceId] = baseline;
+        }
+        else if (baseline.ExpectedHadLocalOverride != hasLocalOverride
+            || baseline.ExpectedFontSize != currentFontSize)
+        {
+            // BaseLib may re-run its own auto-size after the selected value changes.
+            // Treat that externally supplied state as the new baseline before fitting.
+            baseline.Refresh(hasLocalOverride, currentFontSize);
+        }
+
+        if (ShouldFitEnglishClosedDropdownFont(
+            propertyName,
+            value,
+            ConfigLanguage))
+        {
+            var fontName = textControl is RichTextLabel ? "normal_font" : "font";
+            var font = textControl.GetThemeFont(fontName);
+            var text = textControl switch
+            {
+                Label label => label.Text,
+                RichTextLabel richTextLabel => richTextLabel.Text,
+                _ => string.Empty
+            };
+            var safeTextWidth = ResolveClosedDropdownSafeTextWidth(
+                ResolveClosedDropdownWidth(textControl));
+            var fittedFontSize = ResolveSafeClosedDropdownFontSize(
+                baseline.FontSize,
+                safeTextWidth,
+                candidateFontSize => font.GetStringSize(
+                    text,
+                    HorizontalAlignment.Left,
+                    -1,
+                    candidateFontSize).X);
+            if (fittedFontSize > 0)
+            {
+                textControl.AddThemeFontSizeOverride(baseline.FontSizeName, fittedFontSize);
+                baseline.MarkExpected(true, fittedFontSize);
+            }
+
+            return;
+        }
+
+        if (baseline.HadLocalOverride)
+        {
+            textControl.AddThemeFontSizeOverride(baseline.FontSizeName, baseline.FontSize);
+            baseline.MarkExpected(true, baseline.FontSize);
+        }
+        else
+        {
+            textControl.RemoveThemeFontSizeOverride(baseline.FontSizeName);
+            baseline.MarkExpected(false, textControl.GetThemeFontSize(baseline.FontSizeName));
+        }
+    }
+
+    private static float ResolveClosedDropdownWidth(Control textControl)
+    {
+        for (Node? current = textControl; current is not null; current = current.GetParent())
+        {
+            if (current is not NConfigDropdown dropdown)
+            {
+                continue;
+            }
+
+            if (dropdown.Size.X > 0)
+            {
+                return dropdown.Size.X;
+            }
+
+            if (dropdown.CustomMinimumSize.X > 0)
+            {
+                return dropdown.CustomMinimumSize.X;
+            }
+
+            break;
+        }
+
+        return ClosedDropdownFallbackWidth;
+    }
+
+    private static bool IsPlacementPresetProperty(string propertyName) =>
+        propertyName is nameof(ExpectedHpLossPlacementPreset)
+            or nameof(IncomingDamagePlacementPreset)
+            or nameof(DetailsPlacementPreset);
+
+    private static bool IsClosedDropdownFontManagedProperty(string propertyName) =>
+        IsPlacementPresetProperty(propertyName)
+        || propertyName == nameof(IncomingDamagePlacement);
+
     private static void ApplyDropdownItemSourceText(Node node, string propertyName)
     {
         if (node is NConfigDropdown dropdown)
@@ -400,159 +540,126 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             return;
         }
 
+        var replacements = new List<NConfigDropdownItem.ItemData>(items.Count);
         for (var i = 0; i < items.Count; i++)
         {
-            var item = items[i];
-            if (item is null)
+            if (items[i] is not NConfigDropdownItem.ItemData item)
             {
-                continue;
+                return;
             }
 
-            var itemType = item.GetType();
-            var value = itemType.GetProperty("Value")?.GetValue(item);
-            var onSet = itemType.GetProperty("OnSet")?.GetValue(item) as Action;
-            var text = DamageForecastConfigText.EnumValue(propertyName, value, ConfigLanguage);
-            var replacement = Activator.CreateInstance(itemType, text, value!, onSet!);
-            if (replacement is not null)
-            {
-                items[i] = replacement;
-            }
+            var text = DamageForecastConfigText.EnumValue(propertyName, item.Value, ConfigLanguage);
+            replacements.Add(new NConfigDropdownItem.ItemData(text, item.Value, item.OnSet));
         }
+
+        for (var i = 0; i < replacements.Count; i++)
+        {
+            items[i] = replacements[i];
+        }
+
+        RewriteCreatedDropdownItems(dropdown, replacements);
     }
 
-    private static void ApplyDropdownPopupText(Node node)
+    private static void RewriteCreatedDropdownItems(
+        Node node,
+        IReadOnlyList<NConfigDropdownItem.ItemData> replacements)
     {
-        if (TryReadText(node, out var text) && TryGetDropdownText(text, out var itemText))
+        if (node is NConfigDropdownItem dropdownItem)
         {
-            SetDropdownText(node, itemText);
+            var replacement = FindDropdownReplacement(replacements, dropdownItem.Data.Value);
+            if (replacement is not null)
+            {
+                dropdownItem.Data = replacement;
+                dropdownItem.Text = replacement.Text;
+            }
         }
 
         foreach (var child in node.GetChildren())
         {
             if (child is Node childNode)
             {
-                ApplyDropdownPopupText(childNode);
+                RewriteCreatedDropdownItems(childNode, replacements);
             }
         }
     }
 
-    private static bool TryReadText(Node node, out string text)
+    internal static NConfigDropdownItem.ItemData? FindDropdownReplacement(
+        IReadOnlyList<NConfigDropdownItem.ItemData> replacements,
+        object? value) =>
+        replacements.FirstOrDefault(item => Equals(item.Value, value));
+
+    internal static bool ShouldFitEnglishClosedDropdownFont(
+        string propertyName,
+        object? value,
+        DamageForecastConfigLanguage language)
     {
-        switch (node)
+        if (language != DamageForecastConfigLanguage.English)
         {
-            case Label label:
-                text = label.Text;
-                return true;
-            case RichTextLabel richTextLabel:
-                text = richTextLabel.Text;
-                return true;
-            case NDropdownItem dropdownItem:
-                text = dropdownItem.Text;
-                return true;
-            default:
-                var property = node.GetType().GetProperty(
-                    "Text",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (property?.PropertyType == typeof(string)
-                    && property.GetValue(node) is string reflectedText)
-                {
-                    text = reflectedText;
-                    return true;
-                }
-
-                text = string.Empty;
-                return false;
-        }
-    }
-
-    private static void SetDropdownText(Node node, string text)
-    {
-        TrySetReflectedText(node, text);
-        SetPrivateTextField(node, "_label", text);
-        SetPrivateTextField(node, "_richLabel", text);
-    }
-
-    private static bool TrySetReflectedText(Node node, string text)
-    {
-        switch (node)
-        {
-            case Label label:
-                label.Text = text;
-                return true;
-            case RichTextLabel richTextLabel:
-                richTextLabel.Text = text;
-                return true;
-            case NDropdownItem dropdownItem:
-                dropdownItem.Text = text;
-                return true;
-            default:
-                var property = node.GetType().GetProperty(
-                    "Text",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (property?.PropertyType == typeof(string) && property.CanWrite)
-                {
-                    property.SetValue(node, text);
-                    return true;
-                }
-
-                return false;
-        }
-    }
-
-    private static void SetPrivateTextField(Node node, string fieldName, string text)
-    {
-        var field = node.GetType().GetField(
-            fieldName,
-            BindingFlags.Instance | BindingFlags.NonPublic);
-        if (field?.GetValue(node) is Node textNode)
-        {
-            TrySetReflectedText(textNode, text);
-        }
-    }
-
-    private static bool TryGetDropdownText(string text, out string localized)
-    {
-        localized = text switch
-        {
-            nameof(DamageForecastConfigLanguage.SimplifiedChinese) => "简体中文",
-            nameof(DamageDisplayMode.ExpectedHpLossOnly) => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.ExpectedHpLossOnly, ConfigLanguage),
-            nameof(DamageDisplayMode.IncomingDamageOnly) => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.IncomingDamageOnly, ConfigLanguage),
-            nameof(DamageDisplayMode.Both) => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.Both, ConfigLanguage),
-            nameof(IncomingDamagePlacement.LeftOfExpectedHpLoss) => DamageForecastConfigText.EnumValue(nameof(IncomingDamagePlacement), IncomingDamagePlacement.LeftOfExpectedHpLoss, ConfigLanguage),
-            nameof(IncomingDamagePlacement.RightOfExpectedHpLoss) => DamageForecastConfigText.EnumValue(nameof(IncomingDamagePlacement), IncomingDamagePlacement.RightOfExpectedHpLoss, ConfigLanguage),
-            nameof(DamageForecastHudAnchor.HealthBarRight) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarRight, ConfigLanguage),
-            nameof(DamageForecastHudAnchor.HealthBarLeft) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarLeft, ConfigLanguage),
-            nameof(DamageForecastHudAnchor.HealthBarAbove) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarAbove, ConfigLanguage),
-            nameof(DamageForecastHudAnchor.HealthBarBelow) => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarBelow, ConfigLanguage),
-            nameof(HudPlacementPreset.EndTurnButtonAbove) => DamageForecastConfigText.EnumValue(nameof(ExpectedHpLossPlacementPreset), HudPlacementPreset.EndTurnButtonAbove, ConfigLanguage),
-            "Expected HP Loss (Default)" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.ExpectedHpLossOnly, ConfigLanguage),
-            "Incoming Damage" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.IncomingDamageOnly, ConfigLanguage),
-            "Show Both" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(DamageDisplayMode), DamageDisplayMode.Both, ConfigLanguage),
-            "Left of Expected Loss" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(IncomingDamagePlacement), IncomingDamagePlacement.LeftOfExpectedHpLoss, ConfigLanguage),
-            "Right of Expected Loss" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(IncomingDamagePlacement), IncomingDamagePlacement.RightOfExpectedHpLoss, ConfigLanguage),
-            "Right of Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarRight, ConfigLanguage),
-            "Left of Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarLeft, ConfigLanguage),
-            "Above Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarAbove, ConfigLanguage),
-            "Below Health Bar" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(HudAnchorPreset), DamageForecastHudAnchor.HealthBarBelow, ConfigLanguage),
-            "Above End Turn Button" when ConfigLanguage == DamageForecastConfigLanguage.SimplifiedChinese => DamageForecastConfigText.EnumValue(nameof(ExpectedHpLossPlacementPreset), HudPlacementPreset.EndTurnButtonAbove, ConfigLanguage),
-            _ => text
-        };
-        return !string.Equals(localized, text, StringComparison.Ordinal);
-    }
-
-    private sealed partial class DropdownTextUpdater : Node
-    {
-        public override void _Ready()
-        {
-            SetProcess(true);
+            return false;
         }
 
-        public override void _Process(double delta)
+        if (value is HudPlacementPreset.EndTurnButtonAbove
+            && IsPlacementPresetProperty(propertyName))
         {
-            if (GetTree()?.Root is { } root)
+            return true;
+        }
+
+        return propertyName == nameof(IncomingDamagePlacement)
+            && value is IncomingDamagePlacement.RightOfExpectedHpLoss;
+    }
+
+    internal static float ResolveClosedDropdownSafeTextWidth(float dropdownWidth) =>
+        Math.Max(0, dropdownWidth - (2 * ClosedDropdownArrowSafeInset));
+
+    internal static int ResolveSafeClosedDropdownFontSize(
+        int baselineFontSize,
+        float safeTextWidth,
+        Func<int, float> measureTextWidth)
+    {
+        if (baselineFontSize <= 0)
+        {
+            return baselineFontSize;
+        }
+
+        if (safeTextWidth <= 0)
+        {
+            return 1;
+        }
+
+        for (var candidateFontSize = baselineFontSize; candidateFontSize >= 1; candidateFontSize--)
+        {
+            var measuredWidth = measureTextWidth(candidateFontSize);
+            if (float.IsFinite(measuredWidth) && measuredWidth <= safeTextWidth)
             {
-                ApplyDropdownPopupText(root);
+                return candidateFontSize;
             }
+        }
+
+        return 1;
+    }
+
+    private sealed class DropdownFontBaseline(
+        string fontSizeName,
+        bool hadLocalOverride,
+        int fontSize)
+    {
+        public string FontSizeName { get; } = fontSizeName;
+        public bool HadLocalOverride { get; private set; } = hadLocalOverride;
+        public int FontSize { get; private set; } = fontSize;
+        public bool ExpectedHadLocalOverride { get; private set; } = hadLocalOverride;
+        public int ExpectedFontSize { get; private set; } = fontSize;
+
+        public void Refresh(bool hasLocalOverride, int currentFontSize)
+        {
+            HadLocalOverride = hasLocalOverride;
+            FontSize = currentFontSize;
+            MarkExpected(hasLocalOverride, currentFontSize);
+        }
+
+        public void MarkExpected(bool hasLocalOverride, int currentFontSize)
+        {
+            ExpectedHadLocalOverride = hasLocalOverride;
+            ExpectedFontSize = currentFontSize;
         }
     }
 }
