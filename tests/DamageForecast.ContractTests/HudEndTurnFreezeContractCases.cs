@@ -1,3 +1,4 @@
+using MegaCrit.Sts2.Core.GameActions;
 using DamageForecast.Combat;
 using DamageForecast.Forecast;
 using DamageForecast.Patches;
@@ -17,12 +18,7 @@ internal static class HudEndTurnFreezeContractCases
             assert =>
             {
                 var live = Observe(Snapshot(8));
-                var hidden = HudSnapshotLifecyclePolicy.ResolveDisplay(
-                    live,
-                    OwnerA,
-                    ForecastHudSnapshot.Hidden,
-                    isDisplayable: false,
-                    freezeEnabled: true);
+                var hidden = Resolve(live, Snapshot(0), isDisplayable: false);
                 assert.True(
                     hidden.State.LatestLiveSnapshot == Snapshot(8)
                     && hidden.DisplaySnapshot == ForecastHudSnapshot.Hidden,
@@ -36,165 +32,138 @@ internal static class HudEndTurnFreezeContractCases
             "HudFreeze.HiddenTurnEndReevaluation_CommitsLastValidLive",
             assert =>
             {
-                var live = Observe(Snapshot(8));
                 var committed = HudSnapshotLifecyclePolicy.Commit(
-                    live,
+                    Observe(Snapshot(8)),
                     OwnerA,
                     ForecastHudSnapshot.Hidden,
                     isDisplayable: false);
                 assert.True(
                     committed.CommittedSnapshot == Snapshot(8)
                     && committed.LatestLiveSnapshot == Snapshot(8)
-                    && committed.HasPlayerEndedTurn,
-                    "live=8; committed=8; ended=true",
+                    && committed.Phase == HudSnapshotLifecyclePhase.Frozen,
+                    "live=8; committed=8; phase=Frozen",
                     committed.ToString());
             });
 
         yield return new(
             "HF-003",
             "HudFreeze",
-            "HudFreeze.Prepare_CapturesClickBeforeSnapshot",
+            "HudFreeze.Prepare_EntersLocalReadyWaitingWithoutCapturingSnapshot",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
-                var later = HudSnapshotLifecyclePolicy.ResolveDisplay(
-                    prepared,
-                    OwnerA,
-                    Snapshot(3),
-                    isDisplayable: true,
-                    freezeEnabled: true).State;
+                var prepared = Prepare(Observe(Snapshot(8)), generation: 11);
+                var later = Resolve(prepared, Snapshot(3)).State;
                 assert.True(
-                    later.PendingSnapshot == Snapshot(8)
-                    && later.LatestLiveSnapshot == Snapshot(3)
-                    && later.PendingGeneration == 11,
-                    "pending=8; latest=3; generation=11",
+                    later.LatestLiveSnapshot == Snapshot(3)
+                    && later.CommittedSnapshot is null
+                    && later.PendingGeneration == 11
+                    && later.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting,
+                    "latest=3; committed=null; generation=11; phase=LocalReadyWaiting",
                     later.ToString());
             });
 
         yield return new(
             "HF-004",
             "HudFreeze",
-            "HudFreeze.MatchingConfirmation_CommitsCapturedSnapshot",
+            "HudFreeze.ButtonDisable_ConfirmsLocalReadyWithoutFreezing",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
+                var confirmed = HudSnapshotLifecyclePolicy.ConfirmLocalReady(
+                    Prepare(Observe(Snapshot(8)), generation: 11),
                     OwnerA,
                     generation: 11);
-                var confirmed = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
-                    prepared,
-                    OwnerA,
-                    generation: 11);
+                var later = Resolve(confirmed, Snapshot(5)).State;
                 assert.True(
-                    confirmed.CommittedSnapshot == Snapshot(8)
-                    && confirmed.PendingSnapshot is null
-                    && confirmed.PendingGeneration is null
-                    && confirmed.HasPlayerEndedTurn,
-                    "committed=8; pending=null; ended=true",
-                    confirmed.ToString());
+                    later.LatestLiveSnapshot == Snapshot(5)
+                    && later.CommittedSnapshot is null
+                    && later.PendingGeneration is null
+                    && later.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting,
+                    "latest=5; committed=null; pending=null; phase=LocalReadyWaiting",
+                    later.ToString());
             });
 
         yield return new(
             "HF-005",
             "HudFreeze",
-            "HudFreeze.WrongOwnerOrGeneration_CannotConfirm",
+            "HudFreeze.WrongOwnerOrGeneration_CannotConfirmLocalReady",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
-                var wrongGeneration = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
+                var prepared = Prepare(Observe(Snapshot(8)), generation: 11);
+                var wrongGeneration = HudSnapshotLifecyclePolicy.ConfirmLocalReady(
                     prepared,
                     OwnerA,
                     generation: 12);
-                var wrongOwner = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
+                var wrongOwner = HudSnapshotLifecyclePolicy.ConfirmLocalReady(
                     prepared,
                     OwnerB,
                     generation: 11);
                 assert.True(
-                    !wrongGeneration.HasPlayerEndedTurn
-                    && wrongGeneration.PendingSnapshot == Snapshot(8)
-                    && !wrongOwner.HasPlayerEndedTurn
-                    && wrongOwner.PendingSnapshot is null,
-                    "wrong generation preserves pending; wrong owner resets without commit",
+                    wrongGeneration == prepared
+                    && wrongOwner.Owner == OwnerB
+                    && wrongOwner.LatestLiveSnapshot is null
+                    && wrongOwner.CommittedSnapshot is null
+                    && wrongOwner.Phase == HudSnapshotLifecyclePhase.Live,
+                    "wrong generation preserves waiting; wrong owner resets to a clean live state",
                     $"generation={wrongGeneration}; owner={wrongOwner}");
             });
 
         yield return new(
             "HF-006",
             "HudFreeze",
-            "HudFreeze.CancelledRelease_DoesNotFreeze",
+            "HudFreeze.CancelledRelease_ReturnsToLiveWithoutFreezing",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
-                var cancelled = HudSnapshotLifecyclePolicy.CancelEndTurn(
-                    prepared,
+                var cancelled = HudSnapshotLifecyclePolicy.CancelLocalReady(
+                    Prepare(Observe(Snapshot(8)), generation: 11),
                     OwnerA,
                     generation: 11);
                 assert.True(
-                    !cancelled.HasPlayerEndedTurn
+                    cancelled.LatestLiveSnapshot == Snapshot(8)
                     && cancelled.CommittedSnapshot is null
-                    && cancelled.PendingSnapshot is null
-                    && cancelled.PendingGeneration is null,
-                    "ended=false; committed=null; pending=null",
+                    && cancelled.PendingGeneration is null
+                    && cancelled.Phase == HudSnapshotLifecyclePhase.Live,
+                    "latest=8; committed=null; pending=null; phase=Live",
                     cancelled.ToString());
             });
 
         yield return new(
             "HF-007",
             "HudFreeze",
-            "HudFreeze.FallbackCommit_CannotOverwriteExistingCommit",
+            "HudFreeze.FinalBoundary_FreezesOnceAndCannotBeOverwritten",
             assert =>
             {
-                var committed = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
-                    HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                        Observe(Snapshot(8)),
-                        OwnerA,
-                        generation: 11),
-                    OwnerA,
-                    generation: 11);
+                var waiting = Resolve(Prepare(Observe(Snapshot(8)), 11), Snapshot(3)).State;
+                var committed = HudSnapshotLifecyclePolicy.CommitLatest(waiting, OwnerA);
                 var protectedState = HudSnapshotLifecyclePolicy.Commit(
                     committed,
                     OwnerA,
-                    Snapshot(3),
+                    Snapshot(1),
                     isDisplayable: true);
                 assert.True(
-                    protectedState.CommittedSnapshot == Snapshot(8)
-                    && protectedState.LatestLiveSnapshot == Snapshot(8),
-                    "committed and live stay at accepted click-before snapshot",
+                    committed.CommittedSnapshot == Snapshot(3)
+                    && protectedState == committed
+                    && protectedState.Phase == HudSnapshotLifecyclePhase.Frozen,
+                    "final boundary commits latest=3 exactly once",
                     protectedState.ToString());
             });
 
         yield return new(
             "HF-008",
             "HudFreeze",
-            "HudFreeze.NextTurnAndPermanentInvalidation_ClearPendingAndCommitted",
+            "HudFreeze.NextTurnAndPermanentInvalidation_ClearWaitingAndCommitted",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
-                var confirmed = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
-                    prepared,
-                    OwnerA,
-                    generation: 11);
+                var waiting = Prepare(Observe(Snapshot(8)), generation: 11);
+                var frozen = HudSnapshotLifecyclePolicy.CommitLatest(waiting, OwnerA);
                 var nextTurn = HudSnapshotLifecyclePolicy.StartPlayerTurn(OwnerA);
                 var invalidated = HudSnapshotLifecyclePolicy.OnVisibilityEvent(
-                    confirmed,
+                    frozen,
                     HudVisibilityLifecycleEvent.PermanentlyInvalidated);
                 assert.True(
                     nextTurn.LatestLiveSnapshot is null
                     && nextTurn.CommittedSnapshot is null
-                    && nextTurn.PendingSnapshot is null
-                    && !nextTurn.HasPlayerEndedTurn
+                    && nextTurn.PendingGeneration is null
+                    && nextTurn.Phase == HudSnapshotLifecyclePhase.Live
                     && invalidated == HudSnapshotLifecycleState.Empty,
                     "next turn and permanent invalidation clear all snapshot phases",
                     $"next={nextTurn}; invalidated={invalidated}");
@@ -203,71 +172,93 @@ internal static class HudEndTurnFreezeContractCases
         yield return new(
             "HF-009",
             "HudFreeze",
-            "HudFreeze.TemporaryCover_PreservesPendingCandidate",
+            "HudFreeze.TemporaryCover_PreservesLocalReadyWaitingState",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
+                var waiting = Prepare(Observe(Snapshot(8)), generation: 11);
                 var covered = HudSnapshotLifecyclePolicy.OnVisibilityEvent(
-                    prepared,
+                    waiting,
                     HudVisibilityLifecycleEvent.TemporarilyCovered);
-                assert.Equal(prepared, covered);
+                assert.Equal(waiting, covered);
             });
 
         yield return new(
             "HF-010",
             "HudFreeze",
-            "HudFreeze.TurnHookFallback_CommitsClickBeforePendingSnapshot",
+            "HudFreeze.TurnHook_CommitsLastValidWaitingSnapshot",
             assert =>
             {
-                var prepared = HudSnapshotLifecyclePolicy.PrepareEndTurn(
-                    Observe(Snapshot(8)),
-                    OwnerA,
-                    generation: 11);
-                var later = HudSnapshotLifecyclePolicy.ResolveDisplay(
-                    prepared,
-                    OwnerA,
-                    Snapshot(3),
-                    isDisplayable: true,
-                    freezeEnabled: true).State;
-                var committed = HudSnapshotLifecyclePolicy.CommitLatest(later, OwnerA);
+                var waiting = Resolve(Prepare(Observe(Snapshot(8)), 11), Snapshot(3)).State;
+                var committed = HudSnapshotLifecyclePolicy.CommitLatest(waiting, OwnerA);
                 assert.True(
-                    committed.CommittedSnapshot == Snapshot(8)
+                    committed.CommittedSnapshot == Snapshot(3)
                     && committed.LatestLiveSnapshot == Snapshot(3)
-                    && committed.HasPlayerEndedTurn,
-                    "turn-hook fallback accepts pending=8 without rebuilding",
+                    && committed.Phase == HudSnapshotLifecyclePhase.Frozen,
+                    "turn hook accepts last valid live=3",
                     committed.ToString());
             });
 
         yield return new(
             "HF-011",
             "HudFreeze",
-            "HudFreeze.LiveAndFrozenLayers_HaveSeparateParents",
-            assert =>
-            {
-                assert.True(
-                    HudEndTurnLayerPolicy.LiveParent
-                        == HudEndTurnLayerParent.EndTurnButton
-                    && HudEndTurnLayerPolicy.FrozenParent
-                        == HudEndTurnLayerParent.CombatUi,
-                    "live=EndTurnButton; frozen=CombatUi",
-                    $"live={HudEndTurnLayerPolicy.LiveParent}; frozen={HudEndTurnLayerPolicy.FrozenParent}");
-            });
+            "HudFreeze.WaitingTeammateBlock_UpdateReachesFinalCommit",
+            assert => AssertWaitingUpdateCommits(assert, before: 12, after: 5));
 
         yield return new(
             "HF-012",
             "HudFreeze",
-            "HudFreeze.FrozenSnapshot_SuppressesLiveLayerUntilResume",
+            "HudFreeze.WaitingEnemyAttackModifier_UpdateReachesFinalCommit",
+            assert => AssertWaitingUpdateCommits(assert, before: 8, after: 11));
+
+        yield return new(
+            "HF-013",
+            "HudFreeze",
+            "HudFreeze.WaitingEnemyDeath_RemovedIntentReachesFinalCommit",
+            assert => AssertWaitingUpdateCommits(assert, before: 18, after: 7));
+
+        yield return new(
+            "HF-014",
+            "HudFreeze",
+            "HudFreeze.RepeatReadyCancel_DoesNotRestoreStaleSnapshotOrPolluteGeneration",
             assert =>
             {
-                var liveBeforeClick =
-                    HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenSnapshot: false);
-                var liveAfterClick =
-                    HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenSnapshot: true);
-                var preserveAfterClick =
-                    HudEndTurnLayerPolicy.ShouldPreserveFrozen(hasFrozenSnapshot: true);
+                var first = Prepare(Observe(Snapshot(8)), generation: 11);
+                var confirmed = HudSnapshotLifecyclePolicy.ConfirmLocalReady(first, OwnerA, 11);
+                var cancelled = HudSnapshotLifecyclePolicy.CancelLocalReady(confirmed, OwnerA);
+                var updated = Resolve(cancelled, Snapshot(5)).State;
+                var second = Prepare(updated, generation: 12);
+                var wrongCancel = HudSnapshotLifecyclePolicy.CancelLocalReady(second, OwnerA, 11);
+                var final = HudSnapshotLifecyclePolicy.CommitLatest(wrongCancel, OwnerA);
+                assert.True(
+                    wrongCancel.PendingGeneration == 12
+                    && final.CommittedSnapshot == Snapshot(5)
+                    && final.Phase == HudSnapshotLifecyclePhase.Frozen,
+                    "generation=12 remains authoritative; final=5",
+                    $"waiting={wrongCancel}; final={final}");
+            });
+
+        yield return new(
+            "HF-015",
+            "HudFreeze",
+            "HudFreeze.LiveAndStableLayers_HaveSeparateParents",
+            assert =>
+            {
+                assert.True(
+                    HudEndTurnLayerPolicy.LiveParent == HudEndTurnLayerParent.EndTurnButton
+                    && HudEndTurnLayerPolicy.FrozenParent == HudEndTurnLayerParent.CombatUi,
+                    "live=EndTurnButton; stable=CombatUi",
+                    $"live={HudEndTurnLayerPolicy.LiveParent}; stable={HudEndTurnLayerPolicy.FrozenParent}");
+            });
+
+        yield return new(
+            "HF-016",
+            "HudFreeze",
+            "HudFreeze.StableSnapshot_SuppressesLiveLayerUntilResume",
+            assert =>
+            {
+                var liveBeforeClick = HudEndTurnLayerPolicy.ShouldRenderLive(false);
+                var liveAfterClick = HudEndTurnLayerPolicy.ShouldRenderLive(true);
+                var preserveAfterClick = HudEndTurnLayerPolicy.ShouldPreserveFrozen(true);
                 assert.True(
                     liveBeforeClick && !liveAfterClick && preserveAfterClick,
                     "before=true; after=false; preserve=true",
@@ -275,29 +266,57 @@ internal static class HudEndTurnFreezeContractCases
             });
 
         yield return new(
-            "HF-013",
+            "HF-017",
             "HudFreeze",
-            "HudFreeze.EndTurnLifecyclePatchTargets_AreAvailable",
+            "HudFreeze.LifecycleAndActionRefreshTargets_AreAvailable",
             assert =>
             {
                 var ready = ForecastEndTurnFreezePatch.HasLifecycleMethod("_Ready");
                 var combatUiReady = ForecastCombatUiReadyPatch.HasReadyMethod();
                 var release = ForecastEndTurnFreezePatch.HasLifecycleMethod("CallReleaseLogic");
                 var disable = ForecastEndTurnFreezePatch.HasLifecycleMethod("OnDisable");
+                var unended = ForecastEndTurnFreezePatch.HasLifecycleMethod("AfterPlayerUnendedTurn");
+                var afterAction = typeof(ActionExecutor).GetEvent(nameof(ActionExecutor.AfterActionExecuted));
                 assert.True(
-                    ready && combatUiReady && release && disable,
-                    "button ready, combat UI ready, release, and disable targets available",
-                    $"buttonReady={ready}; combatUiReady={combatUiReady}; release={release}; disable={disable}");
+                    ready && combatUiReady && release && disable && unended && afterAction is not null,
+                    "button lifecycle and action-completion refresh targets available",
+                    $"buttonReady={ready}; combatUiReady={combatUiReady}; release={release}; disable={disable}; unended={unended}; afterAction={afterAction is not null}");
             });
     }
 
-    private static HudSnapshotLifecycleState Observe(ForecastHudSnapshot snapshot) =>
+    private static void AssertWaitingUpdateCommits(ContractAssert assert, int before, int after)
+    {
+        var waiting = HudSnapshotLifecyclePolicy.ConfirmLocalReady(
+            Prepare(Observe(Snapshot(before)), generation: 11),
+            OwnerA,
+            generation: 11);
+        var updated = Resolve(waiting, Snapshot(after)).State;
+        var committed = HudSnapshotLifecyclePolicy.CommitLatest(updated, OwnerA);
+        assert.True(
+            updated.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting
+            && committed.CommittedSnapshot == Snapshot(after),
+            $"waiting live and final committed both use {after}",
+            $"waiting={updated}; committed={committed}");
+    }
+
+    private static HudSnapshotLifecycleState Prepare(
+        HudSnapshotLifecycleState state,
+        long generation) =>
+        HudSnapshotLifecyclePolicy.PrepareEndTurn(state, OwnerA, generation);
+
+    private static HudSnapshotResolution Resolve(
+        HudSnapshotLifecycleState state,
+        ForecastHudSnapshot snapshot,
+        bool isDisplayable = true) =>
         HudSnapshotLifecyclePolicy.ResolveDisplay(
-            HudSnapshotLifecyclePolicy.StartPlayerTurn(OwnerA),
+            state,
             OwnerA,
             snapshot,
-            isDisplayable: true,
-            freezeEnabled: true).State;
+            isDisplayable,
+            freezeEnabled: true);
+
+    private static HudSnapshotLifecycleState Observe(ForecastHudSnapshot snapshot) =>
+        Resolve(HudSnapshotLifecyclePolicy.StartPlayerTurn(OwnerA), snapshot).State;
 
     private static ForecastHudSnapshot Snapshot(int total) =>
         new(

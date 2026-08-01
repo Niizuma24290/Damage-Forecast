@@ -2,17 +2,17 @@
 
 ## Current Control
 
-Classification: CLOSED_TASK
+Classification: CHECKPOINT_TASK
 Area: Combat UI
 Touches: Hub UI、Settings Compatibility
 Priority Tag: P2
 Queue: Parked
-State: Closed
-Last completed: I3 — Final Authority / Git Checkpoint
-Next: None — task closed
-Approved: 任务登记、I0、I1、I2、I2-R～I2-R10 与 I3；Codex 游戏启动、push、tag、Workshop 和发布未批准
-Evidence: `I3 Final Closure Checkpoint — 2026-07-31`
-Repository: Implementation checkpoint `a4b2e23`; this docs-only commit is the closure marker
+State: Work Complete / I2-R11 Checkpoint Pending
+Last completed: I2-R11 — Multiplayer HUD Runtime Verification
+Next: 建立已授权的 I2-R11 本地 Git checkpoint，并同步最终 Closed authority
+Approved: 既有 I0～I3，以及 I2-R11 源码、contract、构建、安装、用户运行验证与本地 Git checkpoint；Codex 游戏启动、push、tag、Workshop 和发布未批准
+Evidence: `I2-R11 Runtime Verified Checkpoint — 2026-08-02`
+Repository: Existing checkpoints `a4b2e23` / `d088aed`; I2-R11 checkpoint pending on baseline `8c163c0`
 
 ## Goal
 
@@ -456,3 +456,54 @@ Result: HUD 预设位置、角色跟随、结束按钮稳定显示与点击后�
 Current state: Closed；本机 v0.110.0 RuntimeVerified，stable/beta 仅完成 headless 验证
 Authority: 本卡
 Repository: Implementation checkpoint `a4b2e23`; closure marker is the docs-only commit containing this record
+
+## Gate I2-R11 — Multiplayer LocalReadyWaiting Freeze Repair + End-turn HUD Up 6
+
+Status: RuntimeVerified / Checkpoint Pending
+
+### I2-R11 Approval / Reopen Record — 2026-08-01
+
+- Parent authority: 本卡已按用户提供的 bounded increment 从 `Closed` 重新打开；下一个未占用编号为 `I2-R11`。此前 I3 收口记录保留为历史 checkpoint，不改写其当时事实。
+- Goal: 本地玩家点击结束回合后只进入 `LocalReadyWaiting`，等待队友期间继续接受最后有效 live snapshot；只在 stable `Hook.BeforeTurnEnd` / beta `Hook.BeforeSideTurnEnd` 的玩家方真实提交边界冻结。
+- Refresh scope: 增加等待期间的最小事件驱动刷新，使本地 Block、敌人攻击修正、敌人死亡与 Intent 变化可进入 live snapshot；不增加逐帧伤害重算、网络预测、队友 HUD 或共享 HUD。
+- Layout increment: 结束回合按钮上方 HUD 相对 I2-R10 再向上移动 `6` 个 UI 逻辑单位；保持既有中线、冻结层父级和用户 offset 语义。
+- Verification: 新增 `Live / LocalReadyWaiting / Frozen` 生命周期合同，保持单人空重算保护；运行相关合同、stable/beta 构建和父卡 guardrail。
+- Runtime boundary: 用户明确告知游戏当前正在运行。允许只读调查、源码/任务卡修改、合同测试和仓库内构建；不得关闭游戏、修改游戏目录或安装 DLL。需要安装时必须停止并通知用户关闭游戏。
+- Repository boundary: 只修改本增量自有最小 hunk；Git checkpoint、push、tag、Workshop 和发布均未批准。
+
+### I2-R11 Headless Checkpoint — 2026-08-01
+
+- Lifecycle: snapshot 状态改为明确的 `Live / LocalReadyWaiting / Frozen`。`CallReleaseLogic` 只进入等待态，按钮 `OnDisable` 只确认本地 ready；最终提交仍只由 stable `Hook.BeforeTurnEnd` / beta `Hook.BeforeSideTurnEnd` 执行，并提交最后有效 live snapshot。
+- Cancel / generation: `AfterPlayerUnendedTurn` 将本机状态从 `LocalReadyWaiting` 恢复为 `Live`；错误 generation、重复点击和取消不会恢复旧 snapshot 或污染下一代 generation。
+- Event refresh: 仅在 `LocalReadyWaiting` 期间订阅并响应 `ActionExecutor.AfterActionExecuted`，动作完成后刷新本机 HUD；stable、旧 beta 和 current API 审计均确认该事件存在。没有增加逐帧预测、网络数据或队友 HUD。
+- Stable end-turn layer: 点击后继续使用 `NCombatUi` 稳定层以避免按钮隐藏造成闪烁，同时缓存点击时按钮锚点；等待队友期间只更新稳定层内容，不重新跟随已隐藏按钮。正式提交后保持最终值，取消或下一玩家回合清除。
+- Layout: `EndTurnButtonAbove` 相对 I2-R10 向上移动 `6` 个 UI 逻辑单位；单值继续按按钮中线居中，多值继续按整组中线对称。
+- Contracts: `HF-001..017` 覆盖最后有效值、等待态更新、本地 Block、敌人攻击修正、敌人死亡、取消/重复准备、最终只提交一次、下一回合解冻与正式 API 入口；全套 `486/486` passed，0 failed。
+- Build: stable v0.107.1、beta v0.109.0 和 current v0.110.0 仓库内 Release build 均通过，0 warnings / 0 errors；stable/beta publish tree 内容与 SHA256 一致（DLL `03E393E0B41FABDDC3498A21AC8C5D5281F30876AC3D040BAE665633F882111E`）。
+- Guardrail: `Test-ForecastGuardrails.ps1 -Target all` 与 `-Current` 均为 `QUALITY_GATE ... status=PASS`；`git diff --check` 与 artifact review 通过。
+- Runtime boundary honored: 验证期间游戏保持运行；未关闭游戏、未修改游戏目录、未安装 DLL、未启动游戏、未执行 Git / Workshop / 发布操作。
+- Runtime pending: 安装后需人工多人验证：(1) 本机先结束、队友随后给本机 Block；(2) 队友改变敌人 Weak/Strength 等攻击修正；(3) 队友击杀三怪之一；(4) 准备/取消/重复点击；(5) 最后一位玩家结束时仅冻结一次；并确认结束按钮 HUD 新位置向上 `6` 单位。
+- Stop: 当前按增量卡停止。安装未批准；游戏仍运行，必须先由用户关闭游戏并明确授权安装。
+
+### I2-R11 Installed Checkpoint — 2026-08-01
+
+- Authority: 用户在游戏关闭后明确授权“安装吧”；安装前进程检查返回 `GAME_NOT_RUNNING`。本次只扩张到本机游戏目录事务安装，不包含 Codex 启动游戏、Git、Workshop 或发布。
+- Current target: 以本机 `v0.110.1 / db5d3552` 当前程序集重新 restore、Release build 和 publish；0 warnings / 0 errors。staging 严格只有 `damage-forecast.dll` 与 `damage-forecast.json`。
+- Install: transaction `20260731T181825305Z` 执行 `target-upgrade`；活动 DLL SHA256 `03E393E0B41FABDDC3498A21AC8C5D5281F30876AC3D040BAE665633F882111E`，manifest SHA256 `FF8D4E07E574F9FC89EDEDF0D569EE8A7CADFE2A6A2907CAA9E3097F476C32DB`。
+- Recovery: I2-R10 严格两文件备份位于 Loader 扫描根外的 `20260731T181825305Z-damage-forecast-v0.3.0`；旧 DLL SHA256 `3A7240BF22293B4F64EAADAA7BF720DCECC449A54AF515EE9029E64F41B19270`。ledger 为 `20260731T181825305Z-install-ledger.json`。
+- Post-install verification: 只读安装计划返回 `target-already-current`；活动目录仅一个 `damage-forecast` 身份、严格两文件、无 legacy / orphan，活动哈希与 staging 完全一致。安装后游戏仍未运行。
+- Runtime pending: 用户自行启动游戏，重点验证结束按钮 HUD 新位置与多人本机先结束后的等待更新；结果未验证前保持 `Awaiting Runtime Verification`。
+
+### I2-R11 Runtime Verification Deferred Checkpoint — 2026-08-01
+
+- User disposition: 当前暂时无法执行多人验证，用户计划次日提供结果。
+- Preserved truth: I2-R11 保持 `Installed / HeadlessVerified`；结束按钮上移与多人等待队友刷新均不得提前标记为 `RuntimeVerified`。
+- Resume point: 后续只需接收多人矩阵结果，分别登记本机先结束后 Block 更新、敌人状态变化、敌人死亡、取消/重复准备、最终一次冻结，以及结束按钮上移位置。
+- Boundary: 本轮不启动游戏、不追加安装、不执行 Git、Workshop 或发布；任务停放等待用户反馈。
+
+### I2-R11 Runtime Verified Checkpoint — 2026-08-02
+
+- User result: 用户对已安装 I2-R11 的多人 HUD 冻结运行验证明确反馈“成功”。
+- Verified boundary: 本次 `RuntimeVerified` 只覆盖用户实际确认的多人本机 HUD 等待更新与最终冻结目标；不把此前建议矩阵中的 Block、Weak/Strength、敌人死亡、取消/重复准备等每个子项分别写成已验证。
+- Preserved evidence: 安装版本与哈希继续引用 `I2-R11 Installed Checkpoint`；headless contracts、stable/beta/current build 与 guardrail 继续引用 `I2-R11 Headless Checkpoint`，不重复复制。
+- Closure authority: 用户同时明确要求 HUD session 收口，并授权 I2-R11 自有源码、contracts、任务卡及精确共享 authority hunk 的本地 Git checkpoint；push、tag、Workshop、发布、重新构建、重新安装和游戏启动仍未授权。

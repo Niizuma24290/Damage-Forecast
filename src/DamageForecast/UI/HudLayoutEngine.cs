@@ -5,7 +5,7 @@ internal static class HudLayoutEngine
     private const float HealthBarHorizontalPadding = 22f;
     private const float VerticalPadding = 14f;
     private const float EndTurnVerticalPadding = 2f;
-    private const float EndTurnDownwardOffset = 8f;
+    private const float EndTurnDownwardOffset = 2f;
     private const float SegmentGap = 8f;
     private const float DetailRowGap = 6f;
 

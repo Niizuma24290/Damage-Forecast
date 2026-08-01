@@ -7,10 +7,12 @@ using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Models.Relics;
 using MegaCrit.Sts2.Core.Nodes.Combat;
+using MegaCrit.Sts2.Core.Runs;
 using DamageForecast.Combat;
 using DamageForecast.Diagnostics;
 using DamageForecast.Forecast;
@@ -38,6 +40,7 @@ internal static class ForecastRefreshPatch
     private static readonly LocalDamageForecast Forecast = new();
     private static readonly List<WeakReference<NHealthBar>> RegisteredBars = new();
     private static WeakReference<NEndTurnButton>? _frozenEndTurnButton;
+    private static HudLayoutRect? _frozenEndTurnAnchor;
 #if DAMAGE_FORECAST_VISIBILITY_PROFILING
     [ThreadStatic]
     private static int _lastRegisteredBarsVisited;
@@ -100,6 +103,9 @@ internal static class ForecastRefreshPatch
             ? null
             : GetOrCreateRoot(endTurnButton, EndTurnRootName, EndTurnRootOwnershipGroup);
         var hasFrozenEndTurnSnapshot = IsFrozenEndTurnButton(endTurnButton);
+        var frozenEndTurnRoot = hasFrozenEndTurnSnapshot && endTurnButton is not null
+            ? ResolveFrozenEndTurnRoot(endTurnButton)
+            : null;
         if (healthRoot is null)
         {
             return;
@@ -166,6 +172,20 @@ internal static class ForecastRefreshPatch
         else
         {
             endTurnRoot?.HideAll();
+        }
+
+        if (frozenEndTurnRoot is not null && _frozenEndTurnAnchor is { } frozenAnchor)
+        {
+            ApplyRoot(
+                frozenEndTurnRoot,
+                creature,
+                bar.HpBarContainer,
+                containerSize,
+                expectedText,
+                incomingText,
+                details,
+                endTurnSurface: true,
+                endTurnAnchorOverride: frozenAnchor);
         }
     }
 
@@ -277,7 +297,8 @@ internal static class ForecastRefreshPatch
         string expectedText,
         string incomingText,
         string details,
-        bool endTurnSurface)
+        bool endTurnSurface,
+        HudLayoutRect? endTurnAnchorOverride = null)
     {
         if (healthBar is null)
         {
@@ -301,6 +322,11 @@ internal static class ForecastRefreshPatch
             {
                 if (preset == HudPlacementPreset.EndTurnButtonAbove)
                 {
+                    if (endTurnAnchorOverride is { } stableAnchor)
+                    {
+                        return stableAnchor;
+                    }
+
                     return HudAnchorResolver.TryResolveEndTurnButton(root, out var endAnchor)
                         ? endAnchor
                         : null;
@@ -653,6 +679,7 @@ internal static class ForecastRefreshPatch
         var frozenRoot = GetOrCreateFrozenEndTurnRoot(button);
         if (liveRoot is null
             || frozenRoot is null
+            || !HudAnchorResolver.TryResolveEndTurnButton(frozenRoot, out var frozenAnchor)
             || !liveRoot.CopyVisibleSnapshotTo(frozenRoot))
         {
             frozenRoot?.HideAll();
@@ -660,6 +687,7 @@ internal static class ForecastRefreshPatch
         }
 
         _frozenEndTurnButton = new WeakReference<NEndTurnButton>(button);
+        _frozenEndTurnAnchor = frozenAnchor;
         liveRoot.HideAll();
     }
 
@@ -700,6 +728,7 @@ internal static class ForecastRefreshPatch
 
         RegisteredBars.Clear();
         _frozenEndTurnButton = null;
+        _frozenEndTurnAnchor = null;
     }
 
     private static DamageForecastHudRoot? ResolveLiveEndTurnRoot(NEndTurnButton button)
@@ -747,6 +776,7 @@ internal static class ForecastRefreshPatch
             || frozenButton.IsQueuedForDeletion())
         {
             _frozenEndTurnButton = null;
+            _frozenEndTurnAnchor = null;
             return false;
         }
 
@@ -761,6 +791,7 @@ internal static class ForecastRefreshPatch
             && ReferenceEquals(button, frozenButton))
         {
             _frozenEndTurnButton = null;
+            _frozenEndTurnAnchor = null;
         }
     }
 
@@ -833,7 +864,7 @@ internal static class ForecastEndTurnFreezePatch
             return;
         }
 
-        DamageForecastHudSnapshotStore.ConfirmEndTurn(player, creature, generation);
+        DamageForecastHudSnapshotStore.ConfirmLocalReady(player, creature, generation);
         ClearActive();
         ForecastRefreshPatch.RefreshRegisteredBars();
     }
@@ -851,7 +882,29 @@ internal static class ForecastEndTurnFreezePatch
             return;
         }
 
-        DamageForecastHudSnapshotStore.CancelEndTurn(player, creature, generation);
+        DamageForecastHudSnapshotStore.CancelLocalReady(player, creature, generation);
+        ClearActive();
+        ForecastRefreshPatch.ResumeEndTurnAnchor(__instance);
+        ForecastRefreshPatch.RefreshRegisteredBars();
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPatch("AfterPlayerUnendedTurn")]
+    private static void AfterPlayerUnendedTurnPostfix(
+        NEndTurnButton __instance,
+        Player player)
+    {
+        if (!ForecastRefreshPatch.TryGetRegisteredLocalCreature(
+                out var localPlayer,
+                out var creature)
+            || localPlayer is null
+            || creature is null
+            || player.NetId != localPlayer.NetId)
+        {
+            return;
+        }
+
+        DamageForecastHudSnapshotStore.CancelLocalReady(localPlayer, creature);
         ClearActive();
         ForecastRefreshPatch.ResumeEndTurnAnchor(__instance);
         ForecastRefreshPatch.RefreshRegisteredBars();
@@ -879,7 +932,7 @@ internal static class ForecastEndTurnFreezePatch
             return;
         }
 
-        DamageForecastHudSnapshotStore.CancelEndTurn(player, creature, generation);
+        DamageForecastHudSnapshotStore.CancelLocalReady(player, creature, generation);
     }
 
     private static bool TryGetActive(
@@ -930,11 +983,56 @@ internal static class ForecastCombatUiReadyPatch
             HudAnchorResolver.EnsureEndTurnAnchor(button);
         }
 
+        ForecastActionRefreshSubscription.EnsureSubscribed();
         ForecastRefreshPatch.RefreshRegisteredBars();
     }
 
     internal static bool HasReadyMethod() =>
         AccessTools.Method(typeof(NCombatUi), nameof(NCombatUi._Ready)) is not null;
+}
+
+internal static class ForecastActionRefreshSubscription
+{
+    private static ActionExecutor? _subscribedExecutor;
+
+    internal static void EnsureSubscribed()
+    {
+        try
+        {
+            var executor = RunManager.Instance.ActionExecutor;
+            if (ReferenceEquals(executor, _subscribedExecutor))
+            {
+                return;
+            }
+
+            Clear();
+            executor.AfterActionExecuted += AfterActionExecuted;
+            _subscribedExecutor = executor;
+        }
+        catch
+        {
+            Clear();
+        }
+    }
+
+    internal static void Clear()
+    {
+        if (_subscribedExecutor is null)
+        {
+            return;
+        }
+
+        _subscribedExecutor.AfterActionExecuted -= AfterActionExecuted;
+        _subscribedExecutor = null;
+    }
+
+    private static void AfterActionExecuted(GameAction _)
+    {
+        if (DamageForecastHudSnapshotStore.IsLocalReadyWaiting)
+        {
+            ForecastRefreshPatch.RefreshRegisteredBars();
+        }
+    }
 }
 
 [HarmonyPatch(typeof(CardPile))]
@@ -1082,6 +1180,7 @@ internal static class ForecastTurnLifecyclePatch
     private static void AfterCombatEndPostfix()
     {
         ForecastEndTurnFreezePatch.Clear();
+        ForecastActionRefreshSubscription.Clear();
         DamageForecastHudSnapshotStore.Clear();
         ForecastRefreshPatch.HideAndClearRegisteredBars();
         HudAnchorResolver.Clear();

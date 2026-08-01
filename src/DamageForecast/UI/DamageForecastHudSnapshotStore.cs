@@ -9,6 +9,9 @@ internal static class DamageForecastHudSnapshotStore
 {
     private static HudSnapshotLifecycleState _state = HudSnapshotLifecycleState.Empty;
 
+    internal static bool IsLocalReadyWaiting =>
+        _state.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting;
+
     public static void OnPlayerSideTurnStarted(Player player, Creature creature)
     {
         _state = HudSnapshotLifecyclePolicy.StartPlayerTurn(IdentityOf(player, creature));
@@ -27,20 +30,27 @@ internal static class DamageForecastHudSnapshotStore
             generation);
     }
 
-    public static void ConfirmEndTurn(Player player, Creature creature, long generation)
+    public static void ConfirmLocalReady(Player player, Creature creature, long generation)
     {
-        _state = HudSnapshotLifecyclePolicy.ConfirmEndTurn(
+        _state = HudSnapshotLifecyclePolicy.ConfirmLocalReady(
             _state,
             IdentityOf(player, creature),
             generation);
     }
 
-    public static void CancelEndTurn(Player player, Creature creature, long generation)
+    public static void CancelLocalReady(Player player, Creature creature, long generation)
     {
-        _state = HudSnapshotLifecyclePolicy.CancelEndTurn(
+        _state = HudSnapshotLifecyclePolicy.CancelLocalReady(
             _state,
             IdentityOf(player, creature),
             generation);
+    }
+
+    public static void CancelLocalReady(Player player, Creature creature)
+    {
+        _state = HudSnapshotLifecyclePolicy.CancelLocalReady(
+            _state,
+            IdentityOf(player, creature));
     }
 
     public static void OnPlayerTurnEnding(Player player, Creature creature, ForecastHudSnapshot latest)

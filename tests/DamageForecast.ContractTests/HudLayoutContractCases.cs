@@ -256,9 +256,9 @@ internal static class HudLayoutContractCases
                 assert.True(
                     single.CenterX == HealthBar.CenterX
                     && ((left.Left + right.Right) * 0.5f) == HealthBar.CenterX
-                    && single.Bottom == HealthBar.Top + 6f
-                    && left.Bottom == HealthBar.Top + 6f,
-                    "one centered; two-item cluster symmetric and shifted 8px down from the 2px-gap baseline",
+                    && single.Bottom == HealthBar.Top
+                    && left.Bottom == HealthBar.Top,
+                    "one centered; two-item cluster symmetric and shifted up 6 UI units from I2-R10",
                     $"one={single}; left={left}; right={right}");
             });
 

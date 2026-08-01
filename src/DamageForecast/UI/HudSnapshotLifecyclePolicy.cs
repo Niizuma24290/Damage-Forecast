@@ -12,20 +12,16 @@ internal static class HudSnapshotLifecyclePolicy
         HudSnapshotOwnerIdentity owner)
     {
         state = ForOwner(state, owner);
-        if (state.HasPlayerEndedTurn)
+        if (state.Phase == HudSnapshotLifecyclePhase.Frozen)
         {
             return state;
         }
 
-        var accepted = state.PendingGeneration is not null
-            ? state.PendingSnapshot
-            : state.LatestLiveSnapshot;
         return state with
         {
-            CommittedSnapshot = accepted,
-            PendingSnapshot = null,
+            CommittedSnapshot = state.LatestLiveSnapshot,
             PendingGeneration = null,
-            HasPlayerEndedTurn = true
+            Phase = HudSnapshotLifecyclePhase.Frozen
         };
     }
 
@@ -36,23 +32,20 @@ internal static class HudSnapshotLifecyclePolicy
         bool isDisplayable)
     {
         state = ForOwner(state, owner);
-        if (state.HasPlayerEndedTurn)
+        if (state.Phase == HudSnapshotLifecyclePhase.Frozen)
         {
             return state;
         }
 
-        var accepted = state.PendingGeneration is not null
-            ? state.PendingSnapshot
-            : isDisplayable
-                ? latest
-                : state.LatestLiveSnapshot;
+        var accepted = isDisplayable
+            ? latest
+            : state.LatestLiveSnapshot;
         return state with
         {
             LatestLiveSnapshot = isDisplayable ? latest : state.LatestLiveSnapshot,
             CommittedSnapshot = accepted,
-            PendingSnapshot = null,
             PendingGeneration = null,
-            HasPlayerEndedTurn = true
+            Phase = HudSnapshotLifecyclePhase.Frozen
         };
     }
 
@@ -62,47 +55,61 @@ internal static class HudSnapshotLifecyclePolicy
         long generation)
     {
         state = ForOwner(state, owner);
-        return state.HasPlayerEndedTurn
+        return state.Phase == HudSnapshotLifecyclePhase.Frozen
             ? state
             : state with
             {
-                PendingSnapshot = state.LatestLiveSnapshot,
-                PendingGeneration = generation
+                PendingGeneration = generation,
+                Phase = HudSnapshotLifecyclePhase.LocalReadyWaiting
             };
     }
 
-    public static HudSnapshotLifecycleState ConfirmEndTurn(
+    public static HudSnapshotLifecycleState ConfirmLocalReady(
         HudSnapshotLifecycleState state,
         HudSnapshotOwnerIdentity owner,
         long generation)
     {
         state = ForOwner(state, owner);
-        if (state.HasPlayerEndedTurn || state.PendingGeneration != generation)
+        if (state.Phase == HudSnapshotLifecyclePhase.Frozen
+            || state.PendingGeneration != generation)
         {
             return state;
         }
 
         return state with
         {
-            CommittedSnapshot = state.PendingSnapshot,
-            PendingSnapshot = null,
             PendingGeneration = null,
-            HasPlayerEndedTurn = true
+            Phase = HudSnapshotLifecyclePhase.LocalReadyWaiting
         };
     }
 
-    public static HudSnapshotLifecycleState CancelEndTurn(
+    public static HudSnapshotLifecycleState CancelLocalReady(
         HudSnapshotLifecycleState state,
         HudSnapshotOwnerIdentity owner,
         long generation)
     {
         state = ForOwner(state, owner);
-        return state.HasPlayerEndedTurn || state.PendingGeneration != generation
+        return state.Phase == HudSnapshotLifecyclePhase.Frozen
+            || state.PendingGeneration != generation
             ? state
             : state with
             {
-                PendingSnapshot = null,
-                PendingGeneration = null
+                PendingGeneration = null,
+                Phase = HudSnapshotLifecyclePhase.Live
+            };
+    }
+
+    public static HudSnapshotLifecycleState CancelLocalReady(
+        HudSnapshotLifecycleState state,
+        HudSnapshotOwnerIdentity owner)
+    {
+        state = ForOwner(state, owner);
+        return state.Phase != HudSnapshotLifecyclePhase.LocalReadyWaiting
+            ? state
+            : state with
+            {
+                PendingGeneration = null,
+                Phase = HudSnapshotLifecyclePhase.Live
             };
     }
 
@@ -119,7 +126,7 @@ internal static class HudSnapshotLifecyclePolicy
         }
 
         state = ForOwner(state, owner);
-        if (state.HasPlayerEndedTurn)
+        if (state.Phase == HudSnapshotLifecyclePhase.Frozen)
         {
             return new(state, state.CommittedSnapshot ?? ForecastHudSnapshot.Hidden);
         }
@@ -141,7 +148,7 @@ internal static class HudSnapshotLifecyclePolicy
     {
         if (freezeEnabled
             && state.Owner == owner
-            && state.HasPlayerEndedTurn
+            && state.Phase == HudSnapshotLifecyclePhase.Frozen
             && state.CommittedSnapshot is { } committed)
         {
             snapshot = committed;
@@ -173,12 +180,20 @@ internal readonly record struct HudSnapshotLifecycleState(
     HudSnapshotOwnerIdentity? Owner,
     ForecastHudSnapshot? LatestLiveSnapshot,
     ForecastHudSnapshot? CommittedSnapshot,
-    ForecastHudSnapshot? PendingSnapshot,
     long? PendingGeneration,
-    bool HasPlayerEndedTurn)
+    HudSnapshotLifecyclePhase Phase)
 {
+    public bool HasPlayerEndedTurn => Phase == HudSnapshotLifecyclePhase.Frozen;
+
     public static HudSnapshotLifecycleState Empty =>
-        new(null, null, null, null, null, false);
+        new(null, null, null, null, HudSnapshotLifecyclePhase.Live);
+}
+
+internal enum HudSnapshotLifecyclePhase
+{
+    Live,
+    LocalReadyWaiting,
+    Frozen
 }
 
 internal readonly record struct HudSnapshotResolution(
