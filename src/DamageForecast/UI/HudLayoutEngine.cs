@@ -311,6 +311,41 @@ internal readonly record struct HudAnchorPoint(float X, float Y);
 
 internal readonly record struct HudLayoutSize(float Width, float Height);
 
+internal readonly record struct HudAffineTransform2D(
+    float XAxisX,
+    float XAxisY,
+    float YAxisX,
+    float YAxisY,
+    float OriginX,
+    float OriginY)
+{
+    public HudAnchorPoint Transform(HudAnchorPoint point) =>
+        new(
+            (XAxisX * point.X) + (YAxisX * point.Y) + OriginX,
+            (XAxisY * point.X) + (YAxisY * point.Y) + OriginY);
+}
+
+internal static class HudEndTurnAnchorTransferPolicy
+{
+    public static HudLayoutRect Convert(
+        HudLayoutRect liveAnchor,
+        HudAffineTransform2D liveToFrozen)
+    {
+        var points = new[]
+        {
+            liveToFrozen.Transform(new HudAnchorPoint(liveAnchor.Left, liveAnchor.Top)),
+            liveToFrozen.Transform(new HudAnchorPoint(liveAnchor.Right, liveAnchor.Top)),
+            liveToFrozen.Transform(new HudAnchorPoint(liveAnchor.Right, liveAnchor.Bottom)),
+            liveToFrozen.Transform(new HudAnchorPoint(liveAnchor.Left, liveAnchor.Bottom))
+        };
+        var left = points.Min(point => point.X);
+        var top = points.Min(point => point.Y);
+        var right = points.Max(point => point.X);
+        var bottom = points.Max(point => point.Y);
+        return new HudLayoutRect(left, top, right - left, bottom - top);
+    }
+}
+
 internal static class HudEndTurnLocalAnchorPolicy
 {
     public static HudLayoutRect Resolve(

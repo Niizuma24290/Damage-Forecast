@@ -57,9 +57,9 @@ Damage Forecast does not simulate a full turn, does not call real damage or comm
 - `♥ N`: trusted direct HP loss that does not go through Block.
 - Unknown, unsupported, non-combat, zero-output, hidden UI, or untrusted partial values are hidden rather than guessed.
 - HUD refreshes from health-bar lifecycle hooks, hand pile changes, relic add/remove/melt, selected turn lifecycle hooks, and settings changes.
-- 结束回合冻结固定启用且不再显示设置开关。点击结束回合时保存最后有效 live snapshot 与可见 HUD 位置；按钮退场后冻结层保持数值和位置，取消点击、下一玩家回合或战斗结束时恢复/清理，不改变预测机制。
+- 结束回合冻结固定启用且不再显示设置开关。点击结束回合时保存最后有效 live snapshot，并把按钮视觉锚点按实际 canvas transform 事务性交接到本地 `NCombatUi` 固定层；按钮退场后冻结层保持锚点，等待态仍可刷新数值，取消点击、下一玩家回合或战斗结束时恢复/清理，不改变预测机制。
 - 血条侧 HUD 作为本地 `NHealthBar` 子节点跟随角色血条。人物上方 placement 对普通角色使用随原生缩放变化的头部语义点，对储君使用椅子顶部；人物下方 placement 在 Buff 行发生遮挡时按实际 Buff 行高下移。
-- 结束回合按钮上方 placement 的活动层直属当前 `NEndTurnButton`，冻结层位于本地 `NCombatUi`；可见 cluster 围绕按钮原生文字/图框中线排列。该路径的持续显示、防闪烁、视觉居中与点击后冻结已由用户在 v0.110.0 验证。
+- 结束回合按钮上方 placement 的活动层直属当前 `NEndTurnButton`，冻结层位于本地 `NCombatUi`；可见 cluster 围绕按钮原生文字/图框中线排列。视觉居中曾由用户在 v0.110.0 验证；跨父层固定位置交接、按钮下降、等待态刷新、覆盖页隐藏/恢复、取消结束与新回合恢复已由用户在 current v0.110.1 验证。
 - Known native covering pages hide the HUD only while at least one covering screen remains open and preserve the committed forecast snapshot for immediate restore. Map and `NCardPileScreen` paths cover the map, draw pile, discard pile, and exhaust pile; this matrix is RuntimeVerified on stable v0.107.1 and beta v0.109.0. Combat end, invalid player state, or disabled HUD settings still clear the relevant display state.
 - The temporary local health-bar center guide, HUD text center guide, and alignment runtime log have been removed after the alignment observation task.
 - Default `HealthBarRight` HUD placement now centers the main HUD label on the same local health-bar center line used by the temporary guide. User X/Y offsets still apply after the default position is calculated.

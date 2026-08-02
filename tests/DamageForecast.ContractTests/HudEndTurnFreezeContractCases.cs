@@ -282,7 +282,132 @@ internal static class HudEndTurnFreezeContractCases
                     "button lifecycle and action-completion refresh targets available",
                     $"buttonReady={ready}; combatUiReady={combatUiReady}; release={release}; disable={disable}; unended={unended}; afterAction={afterAction is not null}");
             });
+
+        yield return new(
+            "HF-018",
+            "HudFreeze",
+            "HudFreeze.AnchorHandoff_RequiresRootsConversionAndSnapshotCopy",
+            assert =>
+            {
+                var complete = HudEndTurnAnchorHandoffPolicy.Resolve(
+                    rootsReady: true,
+                    anchorConverted: true,
+                    snapshotCopied: true);
+                var missingRoots = HudEndTurnAnchorHandoffPolicy.Resolve(false, true, true);
+                var failedConversion = HudEndTurnAnchorHandoffPolicy.Resolve(true, false, true);
+                var failedCopy = HudEndTurnAnchorHandoffPolicy.Resolve(true, true, false);
+                assert.True(
+                    complete.CommitFrozen && complete.SuppressLive
+                    && !missingRoots.CommitFrozen && missingRoots.SuppressLive
+                    && !failedConversion.CommitFrozen && failedConversion.SuppressLive
+                    && !failedCopy.CommitFrozen && failedCopy.SuppressLive,
+                    "only the complete transaction commits frozen; every attempt suppresses live",
+                    $"complete={complete}; roots={missingRoots}; conversion={failedConversion}; copy={failedCopy}");
+            });
+
+        yield return new(
+            "HF-019",
+            "HudFreeze",
+            "HudFreeze.AnchorHandoff_ConvertsScaleAndTranslationIntoFrozenCanvas",
+            assert =>
+            {
+                var converted = HudEndTurnAnchorTransferPolicy.Convert(
+                    new HudLayoutRect(10f, 20f, 30f, 40f),
+                    new HudAffineTransform2D(
+                        XAxisX: 1.5f,
+                        XAxisY: 0f,
+                        YAxisX: 0f,
+                        YAxisY: 2f,
+                        OriginX: 100f,
+                        OriginY: -50f));
+                assert.Equal(new HudLayoutRect(115f, -10f, 45f, 80f), converted);
+            });
+
+        yield return new(
+            "HF-020",
+            "HudFreeze",
+            "HudFreeze.CapturedAnchor_DoesNotFollowLaterButtonMovement",
+            assert =>
+            {
+                var liveAnchor = new HudLayoutRect(10f, 20f, 30f, 40f);
+                var captured = HudEndTurnAnchorTransferPolicy.Convert(
+                    liveAnchor,
+                    Translation(originY: -50f));
+                var afterButtonMoved = HudEndTurnAnchorTransferPolicy.Convert(
+                    liveAnchor,
+                    Translation(originY: 250f));
+                assert.True(
+                    captured == new HudLayoutRect(110f, -30f, 30f, 40f)
+                    && afterButtonMoved == new HudLayoutRect(110f, 270f, 30f, 40f)
+                    && captured != afterButtonMoved,
+                    "captured frozen coordinate remains the pre-animation value",
+                    $"captured={captured}; moved={afterButtonMoved}");
+            });
+
+        yield return new(
+            "HF-021",
+            "HudFreeze",
+            "HudFreeze.WaitingTextUpdate_KeepsCapturedAnchorCenterline",
+            assert =>
+            {
+                var anchor = new HudLayoutRect(100f, 200f, 80f, 40f);
+                var before = EndTurnLayout(anchor, width: 20f);
+                var after = EndTurnLayout(anchor, width: 44f);
+                assert.True(
+                    before.CenterX == anchor.CenterX
+                    && after.CenterX == anchor.CenterX
+                    && before.Bottom == after.Bottom,
+                    "text width changes around the same captured anchor",
+                    $"anchor={anchor}; before={before}; after={after}");
+            });
+
+        yield return new(
+            "HF-022",
+            "HudFreeze",
+            "HudFreeze.CoveringScreen_HidesBothLayersAndRestoresFrozenLayer",
+            assert =>
+            {
+                var live = HudEndTurnLayerPolicy.ResolveVisibility(
+                    hasFrozenSnapshot: false,
+                    hudVisible: true);
+                var frozen = HudEndTurnLayerPolicy.ResolveVisibility(
+                    hasFrozenSnapshot: true,
+                    hudVisible: true);
+                var covered = HudEndTurnLayerPolicy.ResolveVisibility(
+                    hasFrozenSnapshot: true,
+                    hudVisible: false);
+                var restored = HudEndTurnLayerPolicy.ResolveVisibility(
+                    hasFrozenSnapshot: true,
+                    hudVisible: true);
+                assert.True(
+                    live.RenderLive && !live.RenderFrozen
+                    && !frozen.RenderLive && frozen.RenderFrozen
+                    && !covered.RenderLive && !covered.RenderFrozen
+                    && !restored.RenderLive && restored.RenderFrozen,
+                    "live before click; neither while covered; frozen after restore",
+                    $"live={live}; frozen={frozen}; covered={covered}; restored={restored}");
+            });
     }
+
+    private static HudAffineTransform2D Translation(float originY) =>
+        new(
+            XAxisX: 1f,
+            XAxisY: 0f,
+            YAxisX: 0f,
+            YAxisY: 1f,
+            OriginX: 100f,
+            OriginY: originY);
+
+    private static HudLayoutRect EndTurnLayout(HudLayoutRect anchor, float width) =>
+        HudLayoutEngine.Layout(new HudLayoutRequest(
+            anchor,
+            new HudLayoutRect(0f, 0f, 500f, 500f),
+            HudPlacementPreset.EndTurnButtonAbove,
+            [new HudLayoutItem(
+                HudLayoutContent.ExpectedHpLoss,
+                new HudLayoutSize(width, 20f))],
+            IncomingDamagePlacement.RightOfExpectedHpLoss))
+        .RectFor(HudLayoutContent.ExpectedHpLoss);
 
     private static void AssertWaitingUpdateCommits(ContractAssert assert, int before, int after)
     {

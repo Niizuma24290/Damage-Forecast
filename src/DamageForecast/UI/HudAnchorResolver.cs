@@ -85,6 +85,34 @@ internal static class HudAnchorResolver
         return false;
     }
 
+    public static bool TryResolveFrozenEndTurnAnchor(
+        DamageForecastHudRoot liveRoot,
+        DamageForecastHudRoot frozenRoot,
+        out HudLayoutRect anchor)
+    {
+        anchor = default;
+        if (!TryResolveEndTurnButton(liveRoot, out var liveAnchor)
+            || liveRoot.GetParent() is not NEndTurnButton button
+            || !ReferenceEquals(ResolveEndTurnSurfaceParent(button), frozenRoot.GetParent())
+            || !IsUsable(frozenRoot))
+        {
+            return false;
+        }
+
+        var transform = frozenRoot.GetGlobalTransformWithCanvas().AffineInverse()
+            * liveRoot.GetGlobalTransformWithCanvas();
+        anchor = HudEndTurnAnchorTransferPolicy.Convert(
+            liveAnchor,
+            new HudAffineTransform2D(
+                transform.X.X,
+                transform.X.Y,
+                transform.Y.X,
+                transform.Y.Y,
+                transform.Origin.X,
+                transform.Origin.Y));
+        return anchor.Width > 0f && anchor.Height > 0f;
+    }
+
     public static bool TryResolveCharacterAbove(
         DamageForecastHudRoot root,
         Creature creature,

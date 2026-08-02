@@ -44,4 +44,34 @@ internal static class HudEndTurnLayerPolicy
 
     public static bool ShouldPreserveFrozen(bool hasFrozenSnapshot) =>
         hasFrozenSnapshot;
+
+    public static HudEndTurnLayerVisibility ResolveVisibility(
+        bool hasFrozenSnapshot,
+        bool hudVisible) =>
+        hudVisible
+            ? new HudEndTurnLayerVisibility(
+                RenderLive: !hasFrozenSnapshot,
+                RenderFrozen: hasFrozenSnapshot)
+            : new HudEndTurnLayerVisibility(
+                RenderLive: false,
+                RenderFrozen: false);
 }
+
+internal readonly record struct HudEndTurnLayerVisibility(
+    bool RenderLive,
+    bool RenderFrozen);
+
+internal static class HudEndTurnAnchorHandoffPolicy
+{
+    public static HudEndTurnAnchorHandoffDecision Resolve(
+        bool rootsReady,
+        bool anchorConverted,
+        bool snapshotCopied) =>
+        new(
+            CommitFrozen: rootsReady && anchorConverted && snapshotCopied,
+            SuppressLive: true);
+}
+
+internal readonly record struct HudEndTurnAnchorHandoffDecision(
+    bool CommitFrozen,
+    bool SuppressLive);

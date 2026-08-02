@@ -118,9 +118,16 @@ internal static class ForecastRefreshPatch
             DamageForecastHudSnapshotStore.OnVisibilityHidden(temporarilyCovered);
 
             healthRoot.HideAll();
-            if (HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
+            var hiddenLayers = HudEndTurnLayerPolicy.ResolveVisibility(
+                hasFrozenEndTurnSnapshot,
+                hudVisible: false);
+            if (!hiddenLayers.RenderLive)
             {
                 endTurnRoot?.HideAll();
+            }
+            if (!hiddenLayers.RenderFrozen)
+            {
+                frozenEndTurnRoot?.HideAll();
             }
             return;
         }
@@ -133,9 +140,16 @@ internal static class ForecastRefreshPatch
         if (!DamageForecastHudDisplay.HasDisplayableSnapshot(snapshot))
         {
             healthRoot.HideAll();
-            if (HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
+            var hiddenLayers = HudEndTurnLayerPolicy.ResolveVisibility(
+                hasFrozenEndTurnSnapshot,
+                hudVisible: false);
+            if (!hiddenLayers.RenderLive)
             {
                 endTurnRoot?.HideAll();
+            }
+            if (!hiddenLayers.RenderFrozen)
+            {
+                frozenEndTurnRoot?.HideAll();
             }
             return;
         }
@@ -156,8 +170,10 @@ internal static class ForecastRefreshPatch
             incomingText,
             details,
             endTurnSurface: false);
-        if (endTurnRoot is not null
-            && HudEndTurnLayerPolicy.ShouldRenderLive(hasFrozenEndTurnSnapshot))
+        var visibleLayers = HudEndTurnLayerPolicy.ResolveVisibility(
+            hasFrozenEndTurnSnapshot,
+            hudVisible: true);
+        if (endTurnRoot is not null && visibleLayers.RenderLive)
         {
             ApplyRoot(
                 endTurnRoot,
@@ -174,7 +190,9 @@ internal static class ForecastRefreshPatch
             endTurnRoot?.HideAll();
         }
 
-        if (frozenEndTurnRoot is not null && _frozenEndTurnAnchor is { } frozenAnchor)
+        if (frozenEndTurnRoot is not null
+            && visibleLayers.RenderFrozen
+            && _frozenEndTurnAnchor is { } frozenAnchor)
         {
             ApplyRoot(
                 frozenEndTurnRoot,
@@ -677,18 +695,32 @@ internal static class ForecastRefreshPatch
         ClearFrozenEndTurnSnapshot(button);
         var liveRoot = ResolveLiveEndTurnRoot(button);
         var frozenRoot = GetOrCreateFrozenEndTurnRoot(button);
-        if (liveRoot is null
-            || frozenRoot is null
-            || !HudAnchorResolver.TryResolveEndTurnButton(frozenRoot, out var frozenAnchor)
-            || !liveRoot.CopyVisibleSnapshotTo(frozenRoot))
+        var rootsReady = liveRoot is not null && frozenRoot is not null;
+        HudLayoutRect frozenAnchor = default;
+        var anchorConverted = rootsReady
+            && HudAnchorResolver.TryResolveFrozenEndTurnAnchor(
+                liveRoot!,
+                frozenRoot!,
+                out frozenAnchor);
+        var snapshotCopied = anchorConverted
+            && liveRoot!.CopyVisibleSnapshotTo(frozenRoot!);
+        var handoff = HudEndTurnAnchorHandoffPolicy.Resolve(
+            rootsReady,
+            anchorConverted,
+            snapshotCopied);
+        _frozenEndTurnButton = handoff.SuppressLive
+            ? new WeakReference<NEndTurnButton>(button)
+            : null;
+        if (!handoff.CommitFrozen)
         {
+            _frozenEndTurnAnchor = null;
+            liveRoot?.HideAll();
             frozenRoot?.HideAll();
             return;
         }
 
-        _frozenEndTurnButton = new WeakReference<NEndTurnButton>(button);
         _frozenEndTurnAnchor = frozenAnchor;
-        liveRoot.HideAll();
+        liveRoot!.HideAll();
     }
 
     internal static void ResumeEndTurnAnchor(NEndTurnButton button)
