@@ -11,12 +11,12 @@ Queue: Now
 ## Current Control
 
 Classification: ACTIVE_TASK
-State: HDO-2 In Progress
-Last completed: HDO-1 — RuntimeVerified / Repository Checkpoint
-Next: 对两个默认英文长选项实施 92% 关闭态字号上限，并完成 contracts 与隔离构建验证
-Approved: HDO-1 已完成本地 Git checkpoint；HDO-2 源码、contracts 与仓库内构建验证已批准；HDO-2 安装、游戏启动、Git、push、tag、发布和 Workshop 未批准
-Evidence: `HDO-1 Final Closure — 2026-08-02` / `HDO-2 Approval Record — 2026-08-02`
-Repository: Shared dirty worktree / HDO-1 checkpoint `f652182`; HDO-2 uncommitted
+State: Work Complete / HDO-2 Checkpoint Pending
+Last completed: HDO-2R1 — User Runtime Verification
+Next: 建立用户已授权收口的 HDO-2 本地 Git checkpoint，并同步最终权威
+Approved: HDO-1 已完成本地 Git checkpoint；HDO-2/HDO-2R1 源码、contracts、构建、事务安装、用户运行验证与任务自有本地 Git checkpoint 已批准；push、tag、发布和 Workshop 未批准
+Evidence: `HDO-2R1 Runtime Verified Checkpoint — 2026-08-02`
+Repository: Shared dirty worktree / HDO-1 checkpoints `f652182`, `c6f92a9`; HDO-2 three-path uncommitted diff
 
 ## Goal
 
@@ -101,6 +101,55 @@ Stop: 回填 HDO-1 证据后停止；不安装、不启动游戏、不执行 Git
 - Preserved: 弹出列表字号、中文、短英文值、用户显式选择、三个独立 placement、现有动态宽度适配与 baseline 恢复行为不变。
 - Allowed: 最小生产源码、既有相关 contracts、隔离 contracts 与 current/stable/beta Release build；安装、修改游戏目录、启动游戏、HDO-2 Git checkpoint、push/tag、发布和 Workshop 未批准。
 - Image boundary: 用户图片只用于缺陷定位，不保存到任务卡、仓库或记录中。
+
+### HDO-2 Headless Verification — 2026-08-02
+
+- Result: `DamageDisplayMode.ExpectedHpLossOnly` 和三个 placement 的 `HudPlacementPreset.HealthBarRight` 在英文关闭态先以 BaseLib baseline 的 `92%` 为字号上限；若实测宽度仍超过现有对称箭头安全区，则继续逐级缩小。`DamageDisplayMode` 已纳入关闭态字号管理。
+- Scope: 只修改 `DamageForecastBaseLibConfig.cs` 与既有 `BaseLibDropdownLocalizationContractCases.cs`；关闭态选中文本之外的 popup items 不进入字号路径，中文、短值、其他显式选项保持 baseline。
+- Contracts: 从 HDO-1 checkpoint `c6f92a9` 导出隔离快照，只叠加上述两个 HDO-2 文件；新增 `HDO2-001` / `HDO2-002` 均 PASS，总计 `428/432`。仅有与 HDO-1 基线相同的任务外 `PT-001..004` publish-tree fixture/root 四项失败，没有新增失败。
+- Builds: 同一隔离快照对 current `v0.110.1`、frozen stable `v0.107.1 / 59260271` 与 frozen beta `v0.109.0 / c12f634d` 分别执行 Release build，三者均为 0 warnings / 0 errors；未执行 publish。
+- Boundary: 未安装、未修改游戏目录、未启动游戏、未暂存或提交 HDO-2，未 push/tag、发布或更新 Workshop。等待用户另行授权安装后再进行视觉运行验证。
+
+### HDO-2 Installed Checkpoint — 2026-08-02
+
+- Authority: 用户明确授权“安装吧”；`SlayTheSpire2` 在安装前与安装后均无运行进程。本 Gate 只扩张到本机事务安装，不包含 Codex 启动游戏、HDO-2 Git、发布或 Workshop。
+- Candidate: 使用 HDO-2 隔离 current `v0.110.1` Release build；staging 严格只有 `damage-forecast.dll` 与 `damage-forecast.json`。DLL SHA256 `E772565DC1A60E06B691B34E3162B54565174A5D1783AA56D73750499CA4A64E`，manifest SHA256 `B1BEA532527122635AEAC344AE9DCE15FC7BAE39FF321B51F10EA383AD703A8D`。
+- Install: transaction `20260802T084756266Z` 执行 `target-upgrade`；安装后只读 Plan 返回 `target-already-current`，活动目标仍为唯一 `damage-forecast v0.3.0`，活动两文件 SHA256 与 staging 完全一致。
+- Recovery: 前一活动版本备份位于 Loader 扫描目录外的 `20260802T084756266Z-damage-forecast-v0.3.0`；旧 DLL SHA256 `B7148519F6A334F6131844B296089AEB3E7DD695FF72837891ADC84D2A4E1EFB`，旧 manifest SHA256 `B1BEA532527122635AEAC344AE9DCE15FC7BAE39FF321B51F10EA383AD703A8D`；ledger 为 `20260802T084756266Z-install-ledger.json`。
+- Config boundary: 本次为目标 DLL/manifest 替换，安装 Plan 的 `configRollbackAction` 为 `not-applicable`，没有配置迁移、重置或覆盖操作。
+- Runtime handoff: 用户自行启动游戏，在英文设置页检查关闭状态的 `Expected HP Loss (Default)` 以及三个 `Right of Health Bar`：文字应明显缩小并与箭头保留间距；展开列表的字号应维持原样。
+- Boundary: 未启动游戏、未暂存或提交 HDO-2，未 push/tag、发布或更新 Workshop。等待用户运行验证结果。
+
+### HDO-2R1 Approval Record — 2026-08-02
+
+- Defect: 用户运行截图确认关闭态 `Left of Expected Loss` 仍以原始字号显示并挤压下拉箭头。
+- Goal: 将 `IncomingDamagePlacement.LeftOfExpectedHpLoss` 纳入 HDO-2 的同一英文关闭态策略：先限制为 BaseLib baseline 的 `92%`，仍超宽时继续使用现有箭头安全宽度 fitting。
+- Preserved: popup items、中文、短英文值、其他显式选项和 baseline 恢复行为不变；用户图片只用于视觉定位，不写入仓库或任务记录。
+- Authority: 本轮只批准最小源码、既有 contracts 与仓库内构建验证；安装、修改游戏目录、启动游戏、Git 与发布操作未批准。
+
+### HDO-2R1 Headless Verification — 2026-08-02
+
+- Result: `IncomingDamagePlacement.LeftOfExpectedHpLoss` 已进入 HDO-2 的英文关闭态 `92%` initial cap，并继续受现有箭头安全宽度 fitting 约束；其他语言和值域不变。
+- Contracts: 在 HDO-2 隔离快照重新覆盖本次生产源码与 contract 后，更新后的 `BLP4I-001`、`HDO2-001` 与 `HDO2-002` 均 PASS；总计 `428/432`。仅有与此前相同的任务外 `PT-001..004` publish-tree 四项失败，没有新增失败。
+- Builds: 同一隔离快照对 current `v0.110.1`、frozen stable `v0.107.1 / 59260271` 与 frozen beta `v0.109.0 / c12f634d` 分别执行 Release build，三者均为 0 warnings / 0 errors；未执行 publish。
+- Boundary: 未安装本次 R1、未修改游戏目录、未启动游戏、未暂存或提交 HDO-2，未 push/tag、发布或更新 Workshop。等待用户另行授权安装。
+
+### HDO-2R1 Installed Checkpoint — 2026-08-02
+
+- Authority: 用户明确授权“安装吧”；`SlayTheSpire2` 在安装前与安装后均无运行进程。本 Gate 只扩张到 HDO-2R1 本机事务安装，不包含 Codex 启动游戏、HDO-2 Git、发布或 Workshop。
+- Candidate: current `v0.110.1` 隔离 Release build；staging 严格只有 DLL 与 manifest。DLL SHA256 `3DFD5EE03D553018B473EA3CCB9F1D23A2A6888A4E8C4F6A6E1AD4A2BB294AB7`，manifest SHA256 `B1BEA532527122635AEAC344AE9DCE15FC7BAE39FF321B51F10EA383AD703A8D`。
+- Install: transaction `20260802T094145461Z` 执行 `target-upgrade`；安装后只读 Plan 返回 `target-already-current`，活动目标仍为唯一 `damage-forecast v0.3.0`，活动两文件 SHA256 与 staging 完全一致。
+- Recovery: 前一 HDO-2 活动版本备份位于 Loader 扫描目录外的 `20260802T094145461Z-damage-forecast-v0.3.0`；旧 DLL SHA256 `E772565DC1A60E06B691B34E3162B54565174A5D1783AA56D73750499CA4A64E`，旧 manifest SHA256 `B1BEA532527122635AEAC344AE9DCE15FC7BAE39FF321B51F10EA383AD703A8D`；ledger 为 `20260802T094145461Z-install-ledger.json`。
+- Config boundary: 安装 Plan 的 `configRollbackAction` 为 `not-applicable`，没有配置迁移、重置或覆盖操作。
+- Runtime handoff: 用户自行启动游戏，在英文设置页检查关闭态 `Left of Expected Loss`：文字应缩小并与箭头保留间距；展开列表字号应保持原样。
+- Boundary: 未启动游戏、未暂存或提交 HDO-2，未 push/tag、发布或更新 Workshop。等待用户运行验证结果。
+
+### HDO-2R1 Runtime Verified Checkpoint — 2026-08-02
+
+- Result: 用户在已安装 HDO-2R1 上明确反馈“收口，完美”。本次 `RuntimeVerified` 绑定英文设置页关闭态 `Expected HP Loss (Default)` 与最终补充的 `Left of Expected Loss` 视觉缩放和箭头间距；不扩张为用户未单独报告的 popup 字号或所有 placement 值完整矩阵。
+- Authority: 用户的“收口”授权本任务自有本地 Git checkpoint；不包含 push、tag、发布或 Workshop。
+- Preserved: 中文、短英文值、popup items、既有配置与其他并行 dirty worktree 内容未因本次收口改写或清理。
+- Image boundary: 用户截图只用于视觉验证，没有保存到任务卡、仓库或记录中。
 
 ## Completion and closure requirements
 

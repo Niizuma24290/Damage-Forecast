@@ -139,7 +139,7 @@ internal static class BaseLibDropdownLocalizationContractCases
         yield return new(
             "BLP4I-001",
             "BaseLibDropdownTypography",
-            "BaseLibDropdown.SafeClosedFont_TargetsOnlyTwoKnownLongEnglishValues",
+            "BaseLibDropdown.SafeClosedFont_TargetsKnownLongEnglishValues",
             assert =>
             {
                 var targetProperties = new[]
@@ -162,11 +162,17 @@ internal static class BaseLibDropdownLocalizationContractCases
                     targetProperties[0],
                     HudPlacementPreset.EndTurnButtonAbove,
                     DamageForecastConfigLanguage.SimplifiedChinese);
-                var shorterDefault = !DamageForecastBaseLibConfig.ShouldFitEnglishClosedDropdownFont(
-                    targetProperties[0],
-                    HudPlacementPreset.HealthBarRight,
-                    DamageForecastConfigLanguage.English);
-                var leftExpectedDefault = !DamageForecastBaseLibConfig.ShouldFitEnglishClosedDropdownFont(
+                var allHealthBarRightTargetsFit = targetProperties.All(propertyName =>
+                    DamageForecastBaseLibConfig.ShouldFitEnglishClosedDropdownFont(
+                        propertyName,
+                        HudPlacementPreset.HealthBarRight,
+                        DamageForecastConfigLanguage.English));
+                var expectedDefaultFits =
+                    DamageForecastBaseLibConfig.ShouldFitEnglishClosedDropdownFont(
+                        nameof(DamageForecastBaseLibConfig.DamageDisplayMode),
+                        DamageDisplayMode.ExpectedHpLossOnly,
+                        DamageForecastConfigLanguage.English);
+                var leftExpectedDefault = DamageForecastBaseLibConfig.ShouldFitEnglishClosedDropdownFont(
                     nameof(DamageForecastBaseLibConfig.IncomingDamagePlacement),
                     IncomingDamagePlacement.LeftOfExpectedHpLoss,
                     DamageForecastConfigLanguage.English);
@@ -178,14 +184,97 @@ internal static class BaseLibDropdownLocalizationContractCases
                 assert.True(
                     allEndTurnTargetsFit
                     && rightExpectedFits
+                    && allHealthBarRightTargetsFit
+                    && expectedDefaultFits
                     && chineseDefault
-                    && shorterDefault
                     && leftExpectedDefault
                     && unrelatedDefault,
-                    "only the two known long closed English values use arrow-safe fitting",
+                    "known long closed English values use arrow-safe fitting without widening the language boundary",
                     $"endTurn={allEndTurnTargetsFit}; rightExpected={rightExpectedFits}; "
-                    + $"chinese={chineseDefault}; short={shorterDefault}; "
+                    + $"healthBarRight={allHealthBarRightTargetsFit}; expectedDefault={expectedDefaultFits}; "
+                    + $"chinese={chineseDefault}; "
                     + $"leftExpected={leftExpectedDefault}; unrelated={unrelatedDefault}");
+            });
+
+        yield return new(
+            "HDO2-001",
+            "BaseLibDropdownTypography",
+            "BaseLibDropdown.DefaultLongEnglishValues_StartAtNinetyTwoPercent",
+            assert =>
+            {
+                var targetProperties = new[]
+                {
+                    nameof(DamageForecastBaseLibConfig.ExpectedHpLossPlacementPreset),
+                    nameof(DamageForecastBaseLibConfig.IncomingDamagePlacementPreset),
+                    nameof(DamageForecastBaseLibConfig.DetailsPlacementPreset)
+                };
+                var expectedDefault = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    50,
+                    nameof(DamageForecastBaseLibConfig.DamageDisplayMode),
+                    DamageDisplayMode.ExpectedHpLossOnly,
+                    DamageForecastConfigLanguage.English);
+                var allHealthBarRightDefaults = targetProperties.All(propertyName =>
+                    DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                        50,
+                        propertyName,
+                        HudPlacementPreset.HealthBarRight,
+                        DamageForecastConfigLanguage.English) == 46);
+                var leftExpectedDefault = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    50,
+                    nameof(DamageForecastBaseLibConfig.IncomingDamagePlacement),
+                    IncomingDamagePlacement.LeftOfExpectedHpLoss,
+                    DamageForecastConfigLanguage.English);
+                var shortEnglish = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    50,
+                    targetProperties[0],
+                    HudPlacementPreset.HealthBarLeft,
+                    DamageForecastConfigLanguage.English);
+                var chinese = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    50,
+                    targetProperties[0],
+                    HudPlacementPreset.HealthBarRight,
+                    DamageForecastConfigLanguage.SimplifiedChinese);
+                var zeroBaseline = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    0,
+                    nameof(DamageForecastBaseLibConfig.DamageDisplayMode),
+                    DamageDisplayMode.ExpectedHpLossOnly,
+                    DamageForecastConfigLanguage.English);
+
+                assert.True(
+                    DamageForecastBaseLibConfig.LongClosedDropdownFontScale == 0.92f
+                    && expectedDefault == 46
+                    && allHealthBarRightDefaults
+                    && leftExpectedDefault == 46
+                    && shortEnglish == 50
+                    && chinese == 50
+                    && zeroBaseline == 0,
+                    "only the default long English labels receive the 92% closed-value cap",
+                    $"scale={DamageForecastBaseLibConfig.LongClosedDropdownFontScale}; "
+                    + $"expected={expectedDefault}; placements={allHealthBarRightDefaults}; "
+                    + $"leftExpected={leftExpectedDefault}; "
+                    + $"short={shortEnglish}; chinese={chinese}; zero={zeroBaseline}");
+            });
+
+        yield return new(
+            "HDO2-002",
+            "BaseLibDropdownTypography",
+            "BaseLibDropdown.NinetyTwoPercentCap_StillFitsMeasuredArrowSafeWidth",
+            assert =>
+            {
+                var capped = DamageForecastBaseLibConfig.ResolveClosedDropdownFontSizeLimit(
+                    50,
+                    nameof(DamageForecastBaseLibConfig.DamageDisplayMode),
+                    DamageDisplayMode.ExpectedHpLossOnly,
+                    DamageForecastConfigLanguage.English);
+                var fitted = DamageForecastBaseLibConfig.ResolveSafeClosedDropdownFontSize(
+                    capped,
+                    300,
+                    fontSize => fontSize * 7);
+
+                assert.True(
+                    capped == 46 && fitted == 42,
+                    "92% is an initial ceiling and measured fitting may reduce it further",
+                    $"capped={capped}; fitted={fitted}");
             });
 
         yield return new(

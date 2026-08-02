@@ -11,6 +11,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
 {
     internal const float ClosedDropdownArrowSafeInset = 42f;
     internal const float ClosedDropdownFallbackWidth = 324f;
+    internal const float LongClosedDropdownFontScale = 0.92f;
 
     private static readonly string[] PropertyOrder = HudPlacementConfigSchema.V1PropertyOrder;
     private static readonly string[] LocalizationPropertyOrder = HudPlacementConfigSchema.V2PropertyOrder;
@@ -451,8 +452,13 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             };
             var safeTextWidth = ResolveClosedDropdownSafeTextWidth(
                 ResolveClosedDropdownWidth(textControl));
-            var fittedFontSize = ResolveSafeClosedDropdownFontSize(
+            var maximumFontSize = ResolveClosedDropdownFontSizeLimit(
                 baseline.FontSize,
+                propertyName,
+                value,
+                ConfigLanguage);
+            var fittedFontSize = ResolveSafeClosedDropdownFontSize(
+                maximumFontSize,
                 safeTextWidth,
                 candidateFontSize => font.GetStringSize(
                     text,
@@ -512,7 +518,8 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
 
     private static bool IsClosedDropdownFontManagedProperty(string propertyName) =>
         IsPlacementPresetProperty(propertyName)
-        || propertyName == nameof(IncomingDamagePlacement);
+        || propertyName is nameof(IncomingDamagePlacement)
+            or nameof(DamageDisplayMode);
 
     private static void ApplyDropdownItemSourceText(Node node, string propertyName)
     {
@@ -598,6 +605,14 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
             return false;
         }
 
+        if (ShouldScaleEnglishClosedDropdownFont(
+            propertyName,
+            value,
+            language))
+        {
+            return true;
+        }
+
         if (value is HudPlacementPreset.EndTurnButtonAbove
             && IsPlacementPresetProperty(propertyName))
         {
@@ -606,6 +621,51 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
 
         return propertyName == nameof(IncomingDamagePlacement)
             && value is IncomingDamagePlacement.RightOfExpectedHpLoss;
+    }
+
+    internal static bool ShouldScaleEnglishClosedDropdownFont(
+        string propertyName,
+        object? value,
+        DamageForecastConfigLanguage language)
+    {
+        if (language != DamageForecastConfigLanguage.English)
+        {
+            return false;
+        }
+
+        if (propertyName == nameof(DamageDisplayMode)
+            && value is DamageDisplayMode.ExpectedHpLossOnly)
+        {
+            return true;
+        }
+
+        if (propertyName == nameof(IncomingDamagePlacement)
+            && value is IncomingDamagePlacement.LeftOfExpectedHpLoss)
+        {
+            return true;
+        }
+
+        return IsPlacementPresetProperty(propertyName)
+            && value is HudPlacementPreset.HealthBarRight;
+    }
+
+    internal static int ResolveClosedDropdownFontSizeLimit(
+        int baselineFontSize,
+        string propertyName,
+        object? value,
+        DamageForecastConfigLanguage language)
+    {
+        if (baselineFontSize <= 0
+            || !ShouldScaleEnglishClosedDropdownFont(propertyName, value, language))
+        {
+            return baselineFontSize;
+        }
+
+        return Math.Max(
+            1,
+            (int)Math.Round(
+                baselineFontSize * LongClosedDropdownFontScale,
+                MidpointRounding.AwayFromZero));
     }
 
     internal static float ResolveClosedDropdownSafeTextWidth(float dropdownWidth) =>
