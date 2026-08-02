@@ -10,13 +10,13 @@ Queue: Now
 
 ## Current Control
 
-Classification: CHECKPOINT_TASK
-State: Work Complete / HDO-1 Checkpoint Pending
-Last completed: HDO-1 — User Runtime Verification
-Next: 建立已授权的 HDO-1 本地 Git checkpoint，并登记最终收口
-Approved: HDO-1 源码、contracts、仓库内构建验证、本机事务安装、用户运行验证与本地 Git checkpoint；游戏启动、push、tag、发布和 Workshop 未批准
-Evidence: `HDO-1 Runtime Verified Checkpoint — 2026-08-02`
-Repository: Shared dirty worktree / HDO-1 checkpoint pending on HEAD `e23ea0c`
+Classification: ACTIVE_TASK
+State: HDO-2 In Progress
+Last completed: HDO-1 — RuntimeVerified / Repository Checkpoint
+Next: 对两个默认英文长选项实施 92% 关闭态字号上限，并完成 contracts 与隔离构建验证
+Approved: HDO-1 已完成本地 Git checkpoint；HDO-2 源码、contracts 与仓库内构建验证已批准；HDO-2 安装、游戏启动、Git、push、tag、发布和 Workshop 未批准
+Evidence: `HDO-1 Final Closure — 2026-08-02` / `HDO-2 Approval Record — 2026-08-02`
+Repository: Shared dirty worktree / HDO-1 checkpoint `f652182`; HDO-2 uncommitted
 
 ## Goal
 
@@ -84,6 +84,23 @@ Stop: 回填 HDO-1 证据后停止；不安装、不启动游戏、不执行 Git
 - Preserved boundary: 既有 `DamageForecast.cfg` 与用户显式选择仍不被迁移或覆盖；本次用户反馈未单独报告显式相反顺序场景，因此不扩张为该项运行验证。
 - Authority: 用户同时明确授权 HDO-1 “收口和 checkpoint”；仅允许任务自有本地 Git checkpoint，不包含 push、tag、发布或 Workshop。
 - Image boundary: 用户图片只用于本次视觉判断，不保存到任务卡、仓库或记录中。
+
+### HDO-1 Final Closure — 2026-08-02
+
+- Result: `RuntimeVerified`；用户确认恢复默认后 `N` 会位于 `-N` 左侧，HDO-1 目标完成。
+- Current state: `Closed`；不再推进 HDO-1 实现或验证。
+- Authority: HDO-1 任务卡仍是该默认顺序变更的历史权威；后续关闭态字体修正以本卡 HDO-2 独立增量继续。
+- Repository: 本地 checkpoint `f652182`（`fix(settings): default HUD order to incoming before expected`）；未 push、tag、发布或更新 Workshop。
+
+## HDO-2 — 默认英文长选项关闭态字号
+
+### HDO-2 Approval Record — 2026-08-02
+
+- Defect: 设置页关闭状态下，`Expected HP Loss (Default)` 与三个 placement 的默认值 `Right of Health Bar` 过长，文字挤压下拉箭头。
+- Goal: 仅对这两个默认英文长值把关闭态字号初始上限设为 BaseLib 基准字号的 `92%`；若仍超过现有对称箭头安全区，则允许既有实测宽度算法继续缩小。
+- Preserved: 弹出列表字号、中文、短英文值、用户显式选择、三个独立 placement、现有动态宽度适配与 baseline 恢复行为不变。
+- Allowed: 最小生产源码、既有相关 contracts、隔离 contracts 与 current/stable/beta Release build；安装、修改游戏目录、启动游戏、HDO-2 Git checkpoint、push/tag、发布和 Workshop 未批准。
+- Image boundary: 用户图片只用于缺陷定位，不保存到任务卡、仓库或记录中。
 
 ## Completion and closure requirements
 
