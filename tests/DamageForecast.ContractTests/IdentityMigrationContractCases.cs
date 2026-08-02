@@ -110,16 +110,20 @@ internal static class IdentityMigrationContractCases
                 && new[] { a.File, b.File }.All(value => value == c.PersistenceContract.ConfigFileName),
                 "both fixtures contain ordered 18 values under STS2PartyWatch.cfg", string.Join(',', a.Keys));
         });
-        yield return new("IS-002", "IdentitySettings", "SettingsFixture_AllDefaultValuesMatchProductionDefaults", assert =>
+        yield return new("IS-002", "IdentitySettings", "SettingsFixture_HistoricalDefaultsRemainDistinctFromCurrentProductionDefaults", assert =>
         {
             var fixture = Load(DefaultPath).Settings;
             var production = CaptureProduction();
-            assert.True(fixture == Defaults && production == Defaults, Describe(Defaults), $"fixture={Describe(fixture)}; production={Describe(production)}");
+            assert.True(
+                fixture == HistoricalDefaults
+                && production == CurrentProductionDefaults,
+                "saved historical fixture keeps RightOfExpectedHpLoss; fresh production default uses LeftOfExpectedHpLoss",
+                $"fixture={Describe(fixture)}; production={Describe(production)}");
         });
         yield return new("IS-003", "IdentitySettings", "SettingsFixture_AllNonDefaultValuesAreExactAndNonDefault", assert =>
         {
             var fixture = Load(NonDefaultPath).Settings;
-            var differs = fixture.Values().Zip(Defaults.Values()).All(pair => !Equals(pair.First, pair.Second));
+            var differs = fixture.Values().Zip(HistoricalDefaults.Values()).All(pair => !Equals(pair.First, pair.Second));
             assert.True(fixture == NonDefaults && differs, Describe(NonDefaults) + "; every value differs", Describe(fixture) + $"; differs={differs}");
         });
         yield return new("IS-004", "IdentitySettings", "SettingsFixture_EnumNamesAndNumericValuesRemainStable", assert =>
@@ -258,10 +262,14 @@ internal static class IdentityMigrationContractCases
     private static string Describe(Settings s) => string.Join(";", s.Values().Select(value => value switch
         { float n => n.ToString("R", System.Globalization.CultureInfo.InvariantCulture), Color c => $"({c.R:R},{c.G:R},{c.B:R},{c.A:R})", _ => value }));
 
-    private static readonly Settings Defaults = new(DamageForecastConfigLanguage.English, true, false, true,
+    private static readonly Settings HistoricalDefaults = new(DamageForecastConfigLanguage.English, true, false, true,
         DamageDisplayMode.ExpectedHpLossOnly, IncomingDamagePlacement.RightOfExpectedHpLoss,
         false, false, false, false, false, true, DamageForecastHudAnchor.HealthBarRight, 0f, 0f,
         Colors.White, new(0.55f, 0.85f, 1f), new(1f, 0.55f, 0.62f));
+    private static readonly Settings CurrentProductionDefaults = HistoricalDefaults with
+    {
+        IncomingDamagePlacement = IncomingDamagePlacement.LeftOfExpectedHpLoss
+    };
     private static readonly Settings NonDefaults = new(DamageForecastConfigLanguage.SimplifiedChinese, false, true, false,
         DamageDisplayMode.Both, IncomingDamagePlacement.LeftOfExpectedHpLoss,
         true, true, true, true, true, false, DamageForecastHudAnchor.HealthBarBelow, 123.5f, -67.25f,

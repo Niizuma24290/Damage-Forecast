@@ -18,7 +18,7 @@ internal sealed class DamageForecastBaseLibConfig : SimpleModConfig
     private static DamageForecastBaseLibConfig? _activeConfig;
     private static DamageForecastConfigLanguage _configLanguage;
     private static DamageDisplayMode _damageDisplayMode = DamageDisplayMode.ExpectedHpLossOnly;
-    private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.RightOfExpectedHpLoss;
+    private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.LeftOfExpectedHpLoss;
     private static DamageForecastHudAnchor _hudAnchorPreset = DamageForecastHudAnchor.HealthBarRight;
     private static HudPlacementPreset _expectedHpLossPlacementPreset = HudPlacementPreset.HealthBarRight;
     private static HudPlacementPreset _incomingDamagePlacementPreset = HudPlacementPreset.HealthBarRight;

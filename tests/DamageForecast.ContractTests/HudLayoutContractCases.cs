@@ -429,6 +429,56 @@ internal static class HudLayoutContractCases
                     "character-above wording plus three localized placement labels",
                     $"above={above}; expected={expected}; incoming={incoming}; details={details}");
             });
+
+        yield return new(
+            "HDO-001",
+            "HudDefaultOrder",
+            "HudDefaultOrder.FreshAndResetDefaults_PlaceIncomingBeforeExpected",
+            assert =>
+            {
+                DamageForecastUiSettings.SetIncomingDamagePlacement(
+                    IncomingDamagePlacement.RightOfExpectedHpLoss);
+                DamageForecastUiSettings.ResetDefaults();
+                assert.True(
+                    DamageForecastBaseLibConfig.IncomingDamagePlacement
+                        == IncomingDamagePlacement.LeftOfExpectedHpLoss
+                    && DamageForecastUiSettings.IncomingDamagePlacement
+                        == IncomingDamagePlacement.LeftOfExpectedHpLoss
+                    && DamageForecastUiSettings.ExpectedHpLossPlacementPreset
+                        == HudPlacementPreset.HealthBarRight
+                    && DamageForecastUiSettings.IncomingDamagePlacementPreset
+                        == HudPlacementPreset.HealthBarRight
+                    && DamageForecastUiSettings.DetailsPlacementPreset
+                        == HudPlacementPreset.HealthBarRight,
+                    "fresh config and ResetDefaults use N-before--N while all three groups remain HealthBarRight",
+                    $"config={DamageForecastBaseLibConfig.IncomingDamagePlacement}; ui={DamageForecastUiSettings.IncomingDamagePlacement}; placements={DamageForecastUiSettings.ExpectedHpLossPlacementPreset}/{DamageForecastUiSettings.IncomingDamagePlacementPreset}/{DamageForecastUiSettings.DetailsPlacementPreset}");
+            });
+
+        yield return new(
+            "HDO-002",
+            "HudDefaultOrder",
+            "HudDefaultOrder.DefaultHealthBarRightCluster_IsIncomingExpectedDetails",
+            assert =>
+            {
+                DamageForecastUiSettings.ResetDefaults();
+                var actual = Layout(
+                    DamageForecastUiSettings.ExpectedHpLossPlacementPreset,
+                    [
+                        Item(HudLayoutContent.ExpectedHpLoss, 20f, 20f),
+                        Item(HudLayoutContent.IncomingDamage, 20f, 20f),
+                        Item(HudLayoutContent.Details, 20f, 20f)
+                    ],
+                    DamageForecastUiSettings.IncomingDamagePlacement);
+                var incoming = actual.RectFor(HudLayoutContent.IncomingDamage);
+                var expected = actual.RectFor(HudLayoutContent.ExpectedHpLoss);
+                var details = actual.RectFor(HudLayoutContent.Details);
+                assert.True(
+                    incoming.Left > HealthBar.Right
+                    && incoming.Right + 8f == expected.Left
+                    && expected.Right + 8f == details.Left,
+                    "health bar | N | -N | details",
+                    $"healthBar={HealthBar}; incoming={incoming}; expected={expected}; details={details}");
+            });
     }
 
     private static HudLayoutResult Layout(

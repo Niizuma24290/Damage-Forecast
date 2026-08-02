@@ -10,7 +10,7 @@ internal static class DamageForecastUiSettings
     private static bool _showLocalHudInMultiplayer = true;
     private static bool _showBreakdownDetails;
     private static DamageDisplayMode _damageDisplayMode = DamageDisplayMode.ExpectedHpLossOnly;
-    private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.RightOfExpectedHpLoss;
+    private static IncomingDamagePlacement _incomingDamagePlacement = IncomingDamagePlacement.LeftOfExpectedHpLoss;
     private static bool _includeCurrentBlockInIncomingDamage;
     private static bool _includePowerBlockInIncomingDamage;
     private static bool _includeRelicBlockInIncomingDamage;
@@ -123,7 +123,7 @@ internal static class DamageForecastUiSettings
             showBreakdownDetails: false,
             freezeHudWithinPlayerTurn: true,
             damageDisplayMode: DamageDisplayMode.ExpectedHpLossOnly,
-            incomingDamagePlacement: IncomingDamagePlacement.RightOfExpectedHpLoss,
+            incomingDamagePlacement: IncomingDamagePlacement.LeftOfExpectedHpLoss,
             includeCurrentBlockInIncomingDamage: false,
             includePowerBlockInIncomingDamage: false,
             includeRelicBlockInIncomingDamage: false,
