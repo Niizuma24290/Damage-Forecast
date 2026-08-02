@@ -10,13 +10,13 @@ Queue: Now
 
 ## Current Control
 
-Classification: ACTIVE_TASK
-State: Work Complete / HDO-2 Checkpoint Pending
-Last completed: HDO-2R1 — User Runtime Verification
-Next: 建立用户已授权收口的 HDO-2 本地 Git checkpoint，并同步最终权威
+Classification: CLOSED_TASK
+State: Closed
+Last completed: HDO-2/HDO-2R1 — RuntimeVerified / Repository Checkpoint
+Next: None；后续新缺陷需另行登记和授权
 Approved: HDO-1 已完成本地 Git checkpoint；HDO-2/HDO-2R1 源码、contracts、构建、事务安装、用户运行验证与任务自有本地 Git checkpoint 已批准；push、tag、发布和 Workshop 未批准
-Evidence: `HDO-2R1 Runtime Verified Checkpoint — 2026-08-02`
-Repository: Shared dirty worktree / HDO-1 checkpoints `f652182`, `c6f92a9`; HDO-2 three-path uncommitted diff
+Evidence: `Final Closure — 2026-08-02`
+Repository: HDO-1 checkpoints `f652182`, `c6f92a9`; HDO-2/HDO-2R1 implementation checkpoint `f89d863`; final authority由本收口提交固化
 
 ## Goal
 
@@ -150,6 +150,13 @@ Stop: 回填 HDO-1 证据后停止；不安装、不启动游戏、不执行 Git
 - Authority: 用户的“收口”授权本任务自有本地 Git checkpoint；不包含 push、tag、发布或 Workshop。
 - Preserved: 中文、短英文值、popup items、既有配置与其他并行 dirty worktree 内容未因本次收口改写或清理。
 - Image boundary: 用户截图只用于视觉验证，没有保存到任务卡、仓库或记录中。
+
+## Final Closure — 2026-08-02
+
+- Result: 默认右侧 HUD 顺序改为 `血条 | N | -N | 明细`；英文关闭态 `Expected HP Loss (Default)`、`Right of Health Bar` 与 `Left of Expected Loss` 使用 `92%` 初始字号上限并保留箭头安全宽度 fitting。用户对最终安装版本反馈“完美”。
+- Current state: `Closed / RuntimeVerified`；运行验证只覆盖用户实际反馈的默认顺序与截图所示关闭态视觉，不扩张为 popup 或全部 placement 组合的完整运行矩阵。push、tag、发布与 Workshop 保持未执行。
+- Authority: 本任务卡为最终权威；`docs/task-notes/README.md` 只保留已关闭任务路由。`docs/project-state.md` 无需为这项局部设置页视觉修正新增产品级事实。
+- Repository: HDO-1 checkpoints `f652182` / `c6f92a9`；HDO-2/HDO-2R1 implementation checkpoint `f89d863`；本节与已关闭路由由本收口提交固化。
 
 ## Completion and closure requirements
 
