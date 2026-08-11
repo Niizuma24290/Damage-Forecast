@@ -73,10 +73,12 @@ internal static class CompatibilityBootstrap
             ConfigValidationResult? current = null;
             if (legacyExists)
             {
+                var legacyBytes = File.ReadAllBytes(options.LegacyConfigPath);
                 legacy = ConfigSchemaDetector.Validate(
-                    File.ReadAllBytes(options.LegacyConfigPath),
+                    legacyBytes,
                     PreDamageForecastSchemaV1.Descriptor);
-                if (!legacy.IsSuccessful)
+                if (!legacy.IsSuccessful
+                    && !HistoricalLegacyConfigRecovery.TryRecover(legacyBytes, out legacy))
                 {
                     return ValidationFailure("legacy config is not safe to migrate", legacy);
                 }

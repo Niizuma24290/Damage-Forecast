@@ -330,6 +330,7 @@ Known Phase 12B limitations:
 ## Post-G6 Product State
 
 - Active identity: `Damage Forecast` / `damage-forecast` / `DamageForecast`.
+- Historical partial `STS2PartyWatch.cfg` files whose only missing properties are a subset of the seven later-added incoming-damage settings now migrate transactionally with versioned defaults while preserving existing values and the exact original backup. Unrelated missing fields, unknown fields, invalid retained values, malformed JSON, and invalid UTF-8 still fail closed. The originally affected player confirmed the updated Mod restores activation; this runtime evidence is limited to that reported upgrade case.
 - Active assembly, DLL stem, manifest ID/stem, install directory, BaseLib registration key, Harmony owner, namespace, and primary diagnostic prefix are aligned with the new identity.
 - Current config identity is `DamageForecast.Settings.DamageForecastBaseLibConfig` / `DamageForecast.cfg`; strict V2 contains 20 ordered keys with three independent placement values and fixed freeze. Strict V1's 18 keys migrate transactionally to V2; rollback is allowed only when all three placements can be represented losslessly by the legacy anchor.
 - The compatibility subsystem under `src/DamageForecast/Compatibility/` owns the legacy migration source descriptors and direct schema graph. Ordinary Settings/UI/Combat/Forecast/Patches code contains no legacy config key, file, or Mod ID literal.

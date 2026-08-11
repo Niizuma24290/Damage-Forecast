@@ -374,6 +374,74 @@ internal static class ConfigMigrationContractCases
                 "migration root inside mod_configs and transaction traversal both fail before target creation",
                 $"inside={insideConfig.Message}; traversal={traversal.Message}");
         });
+
+        yield return new("DFCM-001", "ConfigMigration", "DFCM.HistoricalPartialLegacyConfig_DefaultsOnlyKnownAddedSettings", assert =>
+        {
+            var sourceText = File.ReadAllText(Resolve(OldFixture));
+            var partialText = DamageForecastSchemaV1.HistoricalOptionalDefaults.Keys
+                .Aggregate(sourceText, RemoveProperty);
+            var partialBytes = new UTF8Encoding(false).GetBytes(partialText);
+            var expected = Validate(OldFixture, PreDamageForecastSchemaV1.Descriptor).Snapshot! with
+            {
+                DamageDisplayMode = DamageDisplayMode.ExpectedHpLossOnly,
+                IncomingDamagePlacement = IncomingDamagePlacement.LeftOfExpectedHpLoss,
+                IncludeCurrentBlockInIncomingDamage = false,
+                IncludePowerBlockInIncomingDamage = false,
+                IncludeRelicBlockInIncomingDamage = false,
+                IncludePowerHpLossModifiersInIncomingDamage = false,
+                IncludeRelicHpLossModifiersInIncomingDamage = false
+            };
+
+            using var f = MigrationFixture.Create(old: OldFixture);
+            File.WriteAllBytes(f.Options.LegacyConfigPath, partialBytes);
+            var result = CompatibilityBootstrap.Run(f.Options);
+            var current = ConfigSchemaDetector.Validate(
+                File.ReadAllBytes(f.Options.CurrentConfigPath),
+                DamageForecastSchemaV1.Descriptor);
+            var placement = HudPlacementConfigFileMigration.Run(
+                f.Options with { TransactionId = "historical-placement" });
+
+            assert.True(result.Status == ConfigMigrationStatus.Recovered
+                && result.MayRegisterCurrentConfig
+                && result.Marker?.Status == "recovered"
+                && File.ReadAllBytes(f.Options.BackupPath).AsSpan().SequenceEqual(partialBytes)
+                && current.IsSuccessful
+                && current.Snapshot == expected
+                && placement.MayContinue
+                && HudPlacementConfigFileMigration.IsStrictV2(File.ReadAllBytes(f.Options.CurrentConfigPath)),
+                "the player-reported seven missing settings receive versioned defaults; existing values and the exact original backup are preserved; startup can continue through HUD placement V2",
+                $"migration={result.Status}; placement={placement.Status}; diagnostics={result.Message}");
+        });
+
+        yield return new("DFCM-002", "ConfigMigration", "DFCM.PartialRecovery_StillRejectsUnknownMissingAndInvalidInputs", assert =>
+        {
+            var sourceText = File.ReadAllText(Resolve(OldFixture));
+            var knownPartial = DamageForecastSchemaV1.HistoricalOptionalDefaults.Keys
+                .Aggregate(sourceText, RemoveProperty);
+
+            using var unrelatedMissing = MigrationFixture.Create(old: OldFixture);
+            File.WriteAllText(unrelatedMissing.Options.LegacyConfigPath, RemoveProperty(sourceText, "VerticalOffset"));
+            var unrelatedResult = CompatibilityBootstrap.Run(unrelatedMissing.Options);
+
+            using var invalidPresent = MigrationFixture.Create(old: OldFixture);
+            File.WriteAllText(invalidPresent.Options.LegacyConfigPath,
+                knownPartial.Replace("\"EnablePartyWatchHud\": \"True\"", "\"EnablePartyWatchHud\": \"maybe\"", StringComparison.Ordinal));
+            var invalidResult = CompatibilityBootstrap.Run(invalidPresent.Options);
+
+            using var unknownPresent = MigrationFixture.Create(old: OldFixture);
+            File.WriteAllText(unknownPresent.Options.LegacyConfigPath,
+                InsertBeforeFinalBrace(knownPartial, "  \"FutureKey\": \"kept\""));
+            var unknownResult = CompatibilityBootstrap.Run(unknownPresent.Options);
+
+            assert.True(new[] { unrelatedResult, invalidResult, unknownResult }
+                    .All(result => result.Status == ConfigMigrationStatus.Salvaged
+                        && !result.MayRegisterCurrentConfig)
+                && !File.Exists(unrelatedMissing.Options.CurrentConfigPath)
+                && !File.Exists(invalidPresent.Options.CurrentConfigPath)
+                && !File.Exists(unknownPresent.Options.CurrentConfigPath),
+                "only the known historical additions are defaulted; unrelated missing fields, invalid retained values, and unknown fields still block before target creation",
+                $"unrelated={unrelatedResult.Message}; invalid={invalidResult.Message}; unknown={unknownResult.Message}");
+        });
     }
 
     private static ConfigValidationResult Validate(string path, ConfigSchemaDescriptor schema) =>
