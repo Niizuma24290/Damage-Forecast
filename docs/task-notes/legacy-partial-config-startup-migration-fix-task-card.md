@@ -6,7 +6,7 @@ Type: Config Migration Compatibility Fix
 Area: Platform
 Touches: Mod Initialization, BaseLib Config, Combat UI
 Priority Tag: P1
-Queue: Next
+Queue: Parked
 
 ## Current Control
 
@@ -16,7 +16,7 @@ Last completed: DFCM-3 — Affected-user RuntimeVerified / Repository Checkpoint
 Next: None；后续新缺陷需另行登记和授权
 Approved: DFCM-1 实现、contracts、三目标构建，DFCM-2 本地安装，以及 DFCM-3 用户运行反馈与任务自有本地 Git checkpoint 已批准；Codex 游戏启动、push、tag 和创意工坊上传未批准
 Evidence: `Final Closure — 2026-08-11`
-Repository: 本地 DFCM implementation / contract / runtime authority checkpoint 由本收口提交形成；未 push 或 tag
+Repository: 本地 DFCM implementation / contract / runtime authority checkpoint `688ae41bc034ba5e6b34fa7a9ac85df4c5e456b9`；未 push 或 tag
 
 ## Goal
 
@@ -54,9 +54,16 @@ Repository: 本地 DFCM implementation / contract / runtime authority checkpoint
 - 原受影响用户更新后反馈“新的成功了”。该反馈确认旧配置导致的启动/激活故障已在真实玩家环境恢复，满足本任务 RuntimeVerified 目标。
 - 运行证据只覆盖该受影响用户的升级激活结果；不扩张为所有游戏分支、所有配置损坏形态或完整 HUD 机制矩阵。
 
+## Closure Correction — 2026-08-11
+
+- Integration/upload candidate: 共享 dirty worktree 上的 stable、beta、current 验证为 `554/554`，三个候选 DLL SHA256 均为 `F3F289BDA017C04840356067D4A88F75E675DD0819BA3F9613FCD9368DCDA3AF`。该候选包含当时并行 Session 的最新工作，不能解释为仅由 DFCM checkpoint 重现的任务独立二进制。
+- Task checkpoint: DFCM 源码、contracts 与收口 authority 独立 checkpoint 为 `688ae41bc034ba5e6b34fa7a9ac85df4c5e456b9`。从该 commit 经本地 bundle clone 导出的干净快照在 stable、beta、current 均通过 `439/439` contracts 和 0 warnings / 0 errors Release 构建；三个 checkpoint-only DLL SHA256 均为 `664AE204A612083737290E53D6D1751C5F9BF328978063E6C3A09C0A1502C4CD`。
+- Runtime identity boundary: 原受影响用户的“新的成功了”反馈绑定其实际获取的新上传版本，但 Codex 未独立复核线上 Workshop manifest/hash，因此不把该反馈强行绑定为 `F3F289...` 或 `664AE2...` 的线上二进制身份证明。
+- Local install supersession: DFCM-2 的本机 `F3F289...` 安装随后已被并行 MP-1R2 诊断安装替换；当前本地安装事实由 `docs/project-state.md` 与 MP 任务卡记录，不改变 DFCM 的历史安装和玩家运行结论。
+
 ## Final Closure — 2026-08-11
 
 Result: 已从 Mod 本体修复历史 partial config 的安全向前迁移，玩家无需手动删除配置；原受影响用户确认更新后恢复生效。
 Current state: Closed / RuntimeVerified for the reported legacy-config activation failure；非法或无法证明安全的配置继续 fail closed。
 Authority: 本任务卡、`docs/project-state.md` 与 `docs/task-notes/README.md` 已同步。
-Repository: 本地任务自有 checkpoint 由包含本记录的提交形成；其他并行 dirty work未纳入，未 push 或 tag。
+Repository: 本地任务自有 checkpoint `688ae41bc034ba5e6b34fa7a9ac85df4c5e456b9`；其他并行 dirty work 未纳入，未 push 或 tag。
