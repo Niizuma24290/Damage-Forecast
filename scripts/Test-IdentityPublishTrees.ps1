@@ -10,6 +10,22 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
+function Assert-ApprovedPublishRoot {
+    param(
+        [string]$Target,
+        [string]$ResolvedTree,
+        [string]$ApprovedRelativeRoot
+    )
+
+    $approvedRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ApprovedRelativeRoot)).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+    $approvedPrefix = $approvedRoot + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $ResolvedTree.StartsWith($approvedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Target publish tree must remain under approved publish root $approvedRoot; actual=$ResolvedTree"
+    }
+}
+
 function Resolve-RepoPath {
     param([string]$Path)
 
@@ -44,6 +60,10 @@ function Test-PublishTree {
     if (-not (Test-Path -LiteralPath $resolvedTree -PathType Container)) {
         throw "$Target publish tree not found: $resolvedTree"
     }
+    Assert-ApprovedPublishRoot `
+        -Target $Target `
+        -ResolvedTree $resolvedTree `
+        -ApprovedRelativeRoot $Contract.publishValidationContract.publishRoot
 
     $expectedFiles = @($Contract.packaging.publishWhitelist | Sort-Object)
     $files = @(Get-ChildItem -LiteralPath $resolvedTree -File -Recurse)
@@ -89,6 +109,17 @@ function Test-PublishTree {
     }
     Assert-Equal "$Target assembly identity" $identity.assemblyName $assemblyName
 
+    $assemblyBytes = [System.IO.File]::ReadAllBytes($dllPath)
+    $assemblyAscii = [System.Text.Encoding]::ASCII.GetString($assemblyBytes)
+    $assemblyUtf16 = [System.Text.Encoding]::Unicode.GetString($assemblyBytes)
+    $debugTraceMarkerMatches = @($Contract.publishValidationContract.forbiddenAssemblyMarkers | Where-Object {
+        $assemblyAscii.IndexOf($_, [System.StringComparison]::Ordinal) -ge 0 -or
+        $assemblyUtf16.IndexOf($_, [System.StringComparison]::Ordinal) -ge 0
+    })
+    if ($debugTraceMarkerMatches.Count -ne 0) {
+        throw "$Target publish DLL contains personal Debug Trace markers: $($debugTraceMarkerMatches -join ', ')"
+    }
+
     $hashes = [ordered]@{}
     foreach ($name in $expectedFiles) {
         $hashes[$name] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $resolvedTree $name)).Hash
@@ -102,6 +133,7 @@ function Test-PublishTree {
         assemblyName = $assemblyName
         manifestId = $manifest.id
         manifestVersion = $manifest.version
+        debugTraceMarkerMatches = $debugTraceMarkerMatches.Count
         sha256 = [pscustomobject]$hashes
     }
 }
@@ -131,6 +163,8 @@ if ($contract.status -ne "active-migrated") {
     throw "Publish validation requires active-migrated contract; actual=$($contract.status)"
 }
 if ($contract.publishValidationContract.validatorScriptPath -ne "scripts/Test-IdentityPublishTrees.ps1" -or
+    $contract.publishValidationContract.publishRoot -ne "work/publish" -or
+    @($contract.publishValidationContract.forbiddenAssemblyMarkers).Count -eq 0 -or
     $contract.publishValidationContract.hashAlgorithm -ne "SHA256" -or
     $contract.publishValidationContract.hashDifferencePolicy -ne "reject-unless-explicitly-approved") {
     throw "Identity contract publish validation policy is incomplete or unsupported."

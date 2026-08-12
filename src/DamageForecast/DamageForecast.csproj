@@ -12,6 +12,7 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <DamageForecastVisibilityProfiling Condition="'$(DamageForecastVisibilityProfiling)' == ''">false</DamageForecastVisibilityProfiling>
     <DamageForecastDisableGlobalVisibilityPatches Condition="'$(DamageForecastDisableGlobalVisibilityPatches)' == ''">false</DamageForecastDisableGlobalVisibilityPatches>
+    <DamageForecastDebugTrace Condition="'$(DamageForecastDebugTrace)' == ''">false</DamageForecastDebugTrace>
     <BaseLibVersion>3.3.4</BaseLibVersion>
     <BaseLibReferencePath Condition="'$(BaseLibReferencePath)' == ''">$(MSBuildProjectDirectory)\..\..\work\dependencies\BaseLib\$(BaseLibVersion)\BaseLib.dll</BaseLibReferencePath>
     <Sts2GameRoot Condition="'$(Sts2GameRoot)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2</Sts2GameRoot>
@@ -25,6 +26,14 @@
   <PropertyGroup Condition="'$(DamageForecastDisableGlobalVisibilityPatches)' == 'true'">
     <DefineConstants>$(DefineConstants);DAMAGE_FORECAST_DISABLE_GLOBAL_VISIBILITY_PATCHES</DefineConstants>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DamageForecastDebugTrace)' == 'true'">
+    <DefineConstants>$(DefineConstants);DAMAGE_FORECAST_DEBUG_TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(DamageForecastDebugTrace)' != 'true'">
+    <Compile Remove="Diagnostics\DebugTrace\**\*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="BaseLib">

@@ -2,6 +2,9 @@ using System.Runtime.CompilerServices;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using DamageForecast.Forecast;
+#if DAMAGE_FORECAST_DEBUG_TRACE
+using DamageForecast.Diagnostics.DebugTrace;
+#endif
 
 namespace DamageForecast.UI;
 
@@ -13,6 +16,45 @@ internal static class DamageForecastHudSnapshotStore
         _state.Phase == HudSnapshotLifecyclePhase.LocalReadyWaiting;
 
     internal static HudSnapshotLifecycleState DiagnosticState => _state;
+
+#if DAMAGE_FORECAST_DEBUG_TRACE
+    internal static DebugTraceDisplayBinding CreateDebugTraceBinding(
+        Creature creature,
+        long captureId,
+        bool usedCommittedSnapshot)
+    {
+        if (creature.Player is not { } player)
+        {
+            return new DebugTraceDisplayBinding(
+                captureId,
+                usedCommittedSnapshot,
+                _state.Phase.ToString(),
+                _state.PendingGeneration,
+                DebugTraceReason.OwnerMismatch);
+        }
+
+        var owner = IdentityOf(player, creature);
+        var reason = captureId <= 0
+            ? DebugTraceReason.TraceNotCapturedForSnapshot
+            : !DebugTraceRuntime.TryGetCapture(captureId, out var capture)
+                ? DebugTraceReason.StaleGeneration
+                : _state.Owner is not null && _state.Owner != owner
+                    ? DebugTraceReason.OwnerMismatch
+                    : capture.PlayerNetId != owner.PlayerNetId
+                        || !string.Equals(
+                            capture.CreatureStableIdentity,
+                            owner.CreatureStableIdentity,
+                            StringComparison.Ordinal)
+                            ? DebugTraceReason.OwnerMismatch
+                            : DebugTraceReason.None;
+        return new DebugTraceDisplayBinding(
+            captureId,
+            usedCommittedSnapshot,
+            _state.Phase.ToString(),
+            _state.PendingGeneration,
+            reason);
+    }
+#endif
 
     public static void OnPlayerSideTurnStarted(Player player, Creature creature)
     {

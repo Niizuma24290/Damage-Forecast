@@ -84,10 +84,18 @@
   },
   "publishValidationContract": {
     "validatorScriptPath": "scripts/Test-IdentityPublishTrees.ps1",
+    "publishRoot": "work/publish",
     "targets": ["stable", "beta"],
     "exactFileCount": 2,
     "hashAlgorithm": "SHA256",
     "hashDifferencePolicy": "reject-unless-explicitly-approved",
+    "forbiddenAssemblyMarkers": [
+      "DebugTrace",
+      "DamageForecastDebugTracePanel",
+      "Calculation Debug",
+      "调试 Debug",
+      "计算调试"
+    ],
     "actualPublishRequiresSeparateApproval": true
   },
   "packaging": {

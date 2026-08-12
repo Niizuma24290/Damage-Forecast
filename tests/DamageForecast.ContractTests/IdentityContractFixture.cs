@@ -257,11 +257,15 @@ internal static class IdentityContractFixture
     {
         var publish = contract.PublishValidationContract;
         if (publish.ValidatorScriptPath != "scripts/Test-IdentityPublishTrees.ps1"
+            || publish.PublishRoot != "work/publish"
             || !publish.Targets.SequenceEqual(["stable", "beta"], StringComparer.Ordinal)
             || publish.ExactFileCount != 2 || publish.HashAlgorithm != "SHA256"
             || publish.HashDifferencePolicy != "reject-unless-explicitly-approved"
+            || !publish.ForbiddenAssemblyMarkers.SequenceEqual(
+                ["DebugTrace", "DamageForecastDebugTracePanel", "Calculation Debug", "调试 Debug", "计算调试"],
+                StringComparer.Ordinal)
             || !publish.ActualPublishRequiresSeparateApproval)
-            errors.Add("publish validation contract must enforce two-file stable/beta trees, SHA256 comparison, and separate approval");
+            errors.Add("publish validation contract must enforce approved-root two-file trees, Debug exclusion, SHA256 comparison, and separate approval");
     }
 
     private static void ValidateActiveLifecycle(TechnicalIdentityContract contract, ICollection<string> errors)
@@ -387,8 +391,9 @@ internal sealed record PersistenceIdentityContract(string BaseLibRegistrationRol
 internal sealed record InstallToolIdentityContract(string DefaultMode, string ExecutionSwitch, string PlanBinding, IReadOnlyList<string> Modes,
     string BackupRootPolicy, string LoaderScanModel, string UnsafeBackupDisposition,
     string BackupRetention, string WorkshopDefault, bool RealExecutionRequiresSeparateApproval);
-internal sealed record PublishValidationIdentityContract(string ValidatorScriptPath, IReadOnlyList<string> Targets,
-    int ExactFileCount, string HashAlgorithm, string HashDifferencePolicy, bool ActualPublishRequiresSeparateApproval);
+internal sealed record PublishValidationIdentityContract(string ValidatorScriptPath, string PublishRoot,
+    IReadOnlyList<string> Targets, int ExactFileCount, string HashAlgorithm, string HashDifferencePolicy,
+    IReadOnlyList<string> ForbiddenAssemblyMarkers, bool ActualPublishRequiresSeparateApproval);
 internal sealed record PackagingIdentityContract(string ManifestPath, string BuildScriptPath, string InstallScriptPath,
     bool HasDll, bool HasPck, string DependencyId, string DependencyMinVersion, string MinGameVersion,
     IReadOnlyList<string> PublishWhitelist);

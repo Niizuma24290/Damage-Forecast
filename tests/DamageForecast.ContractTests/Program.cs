@@ -395,6 +395,7 @@ cases.AddRange(ConfigMigrationContractCases.Create());
 cases.AddRange(PostG6ClosureContractCases.Create());
 cases.AddRange(HudLayoutContractCases.Create());
 cases.AddRange(HudEndTurnFreezeContractCases.Create());
+cases.AddRange(DebugTraceContractCases.Create());
 cases.AddRange(HudPlacementConfigContractCases.Create());
 cases.AddRange(BaseLibDropdownLocalizationContractCases.Create());
 

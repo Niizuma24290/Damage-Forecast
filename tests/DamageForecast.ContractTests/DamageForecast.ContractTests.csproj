@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DamageForecast\DamageForecast.csproj"
-                      AdditionalProperties="DamageForecastVisibilityProfiling=true" />
+                      AdditionalProperties="DamageForecastVisibilityProfiling=true;DamageForecastDebugTrace=true" />
     <Reference Include="BaseLib">
       <HintPath>$(BaseLibReferencePath)</HintPath>
       <Private>true</Private>

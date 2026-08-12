@@ -15,6 +15,9 @@ using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Runs;
 using DamageForecast.Combat;
 using DamageForecast.Diagnostics;
+#if DAMAGE_FORECAST_DEBUG_TRACE
+using DamageForecast.Diagnostics.DebugTrace;
+#endif
 using DamageForecast.Forecast;
 using DamageForecast.UI;
 
@@ -85,12 +88,18 @@ internal static class ForecastRefreshPatch
     {
         if (IsMultiplayerSummaryHealthBar(bar))
         {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            DebugTracePanelController.Hide(bar);
+#endif
             HideExisting(bar);
             return;
         }
 
         if (!TryGetLocalCreature(bar, out var creature) || creature is null)
         {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            DebugTracePanelController.Hide(bar);
+#endif
             HideExisting(bar);
             return;
         }
@@ -116,6 +125,16 @@ internal static class ForecastRefreshPatch
         if (!DamageForecastHudVisibilityPolicy.ShouldRenderHud(bar, creature, out var temporarilyCovered))
         {
             DamageForecastHudSnapshotStore.OnVisibilityHidden(temporarilyCovered);
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            if (temporarilyCovered)
+            {
+                DebugTracePanelController.Hide(bar);
+            }
+            else
+            {
+                DebugTracePanelController.Invalidate(bar);
+            }
+#endif
 
             healthRoot.HideAll();
             var hiddenLayers = HudEndTurnLayerPolicy.ResolveVisibility(
@@ -132,11 +151,17 @@ internal static class ForecastRefreshPatch
             return;
         }
 
-        var snapshot = DamageForecastHudSnapshotStore.TryGetCommitted(creature, out var committed)
+        var usedCommittedSnapshot = DamageForecastHudSnapshotStore.TryGetCommitted(
+            creature,
+            out var committed);
+        var snapshot = usedCommittedSnapshot
             ? committed
             : DamageForecastHudSnapshotStore.ResolveDisplayResult(
                 creature,
                 BuildForecastHudSnapshot(creature));
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTracePanelController.Sync(bar, creature, snapshot, usedCommittedSnapshot);
+#endif
         if (!DamageForecastHudDisplay.HasDisplayableSnapshot(snapshot))
         {
             healthRoot.HideAll();
@@ -207,8 +232,34 @@ internal static class ForecastRefreshPatch
         }
     }
 
-    private static ForecastHudSnapshot BuildForecastHudSnapshot(Creature creature)
+    private static ForecastHudSnapshot BuildForecastHudSnapshot(
+        Creature creature,
+        string? debugRefreshReason = null)
     {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        using var capture = DebugTraceRuntime.BeginCapture(
+            creature,
+            debugRefreshReason ?? "hud-refresh");
+        ForecastResult expected;
+        using (DebugTraceRuntime.BeginEvaluation(DebugTraceEvaluationKind.ExpectedHpLoss))
+        {
+            expected = Forecast.Calculate(Reader.ReadForLocalCreature(creature));
+        }
+
+        IncomingDamageDisplayRead incoming;
+        using (DebugTraceRuntime.BeginEvaluation(DebugTraceEvaluationKind.IncomingDamage))
+        {
+            incoming = Reader.ReadIncomingDamageForLocalCreature(creature, new IncomingDamageDisplayOptions(
+                DamageForecastUiSettings.IncludeCurrentBlockInIncomingDamage,
+                DamageForecastUiSettings.IncludePowerBlockInIncomingDamage,
+                DamageForecastUiSettings.IncludeRelicBlockInIncomingDamage,
+                DamageForecastUiSettings.IncludePowerHpLossModifiersInIncomingDamage,
+                DamageForecastUiSettings.IncludeRelicHpLossModifiersInIncomingDamage));
+        }
+
+        var captureId = capture.Seal(expected, incoming);
+        return new ForecastHudSnapshot(expected, incoming, captureId);
+#else
         var expected = Forecast.Calculate(Reader.ReadForLocalCreature(creature));
         var incoming = Reader.ReadIncomingDamageForLocalCreature(creature, new IncomingDamageDisplayOptions(
             DamageForecastUiSettings.IncludeCurrentBlockInIncomingDamage,
@@ -217,6 +268,7 @@ internal static class ForecastRefreshPatch
             DamageForecastUiSettings.IncludePowerHpLossModifiersInIncomingDamage,
             DamageForecastUiSettings.IncludeRelicHpLossModifiersInIncomingDamage));
         return new ForecastHudSnapshot(expected, incoming);
+#endif
     }
 
     private static bool TryGetLocalCreature(NHealthBar bar, out Creature? creature)
@@ -541,6 +593,9 @@ internal static class ForecastRefreshPatch
 
     private static void HideExisting(NHealthBar bar)
     {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTracePanelController.Hide(bar);
+#endif
         var healthRoot = ResolveHudNode<DamageForecastHudRoot>(
             bar,
             RootName,
@@ -1215,6 +1270,9 @@ internal static class ForecastTurnLifecyclePatch
     [HarmonyPatch(nameof(Hook.AfterCombatEnd))]
     private static void AfterCombatEndPostfix()
     {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTracePanelController.Clear();
+#endif
         ForecastEndTurnFreezePatch.Clear();
         ForecastActionRefreshSubscription.Clear();
         DamageForecastHudSnapshotStore.Clear();

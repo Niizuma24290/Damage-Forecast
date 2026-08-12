@@ -108,7 +108,10 @@ work/publish/stable/damage-forecast/
 `Test-IdentityPublishTrees.ps1` is read-only. It requires each stable/beta tree
 to contain exactly the target manifest and DLL at the top level, parses all
 identity/version/dependency fields, reads the managed assembly name, and emits
-per-file SHA256 values. Stable/beta hash differences fail by default; using
+per-file SHA256 values. Both trees must remain under `work/publish/`, and the
+DLL scan rejects personal Debug Trace types, node names, and bilingual UI text.
+`Build-DualTargets.ps1` also passes `DamageForecastDebugTrace=false` explicitly
+to restore/build/publish. Stable/beta hash differences fail by default; using
 `-ApproveHashDifference` is valid only after the difference has been explained
 and separately approved. `Build-DualTargets.ps1` invokes this validator after a
 two-target publish. Running either publish command still requires an explicit

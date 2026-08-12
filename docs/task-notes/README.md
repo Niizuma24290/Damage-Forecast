@@ -21,6 +21,7 @@
 - 已关闭的融入暗影格挡倍率修正（Malaise 分支 Deferred / 未解决）：[`shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md`](shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md)。
 - 新候选 Forecast 时间链/API 统一审查：[`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)。
 - 排队中的架构任务：[`forecast-engine-architecture-stabilization-master-task-card.md`](forecast-engine-architecture-stabilization-master-task-card.md)。
+- 个人 Debug Trace（DT-2C Work Complete / Checkpoint Pending）：[`forecast-debug-calculation-trace-task-card.md`](forecast-debug-calculation-trace-task-card.md)。
 - 最近关闭的 BaseLib 设置下拉弹层本地化与箭头安全区修复：[`baselib-dropdown-popup-localization-master-task-card.md`](baselib-dropdown-popup-localization-master-task-card.md)。
 - 历史 authority consolidation：[`documentation-authority-consolidation-master-task-card.md`](documentation-authority-consolidation-master-task-card.md)。
 
@@ -78,6 +79,7 @@
 | Beta v0.110.0 兼容性与机制漂移调查（已关闭） | [`beta-v0-110-0-compatibility-and-mechanics-drift-master-task-card.md`](beta-v0-110-0-compatibility-and-mechanics-drift-master-task-card.md) |
 | 融入暗影格挡倍率修正（已关闭；Malaise Deferred / 未解决） | [`shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md`](shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md) |
 | Forecast 时间链/API 统一审查（候选） | [`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md) |
+| 屏幕计算过程 Debug Trace（DT-2C Work Complete / Checkpoint Pending） | [`forecast-debug-calculation-trace-task-card.md`](forecast-debug-calculation-trace-task-card.md) |
 | BaseLib 设置下拉弹层本地化与箭头安全区修复（已关闭） | [`baselib-dropdown-popup-localization-master-task-card.md`](baselib-dropdown-popup-localization-master-task-card.md)；关联已确认的 `AUD-0008`，不包含 `AUD-0009` |
 
 ## Task-note classification
@@ -85,6 +87,7 @@
 - `CURRENT_AUTHORITY`：本文件。
 - `CLOSED_TASK`（DFCM）：[`legacy-partial-config-startup-migration-fix-task-card.md`](legacy-partial-config-startup-migration-fix-task-card.md)，旧配置缺少七个历史新增 incoming-damage 字段的启动故障已修复，并由原受影响用户确认更新后恢复生效。
 - `CHECKPOINT_TASK`：无。
+- `WORK_COMPLETE`（DT-2C）：[`forecast-debug-calculation-trace-task-card.md`](forecast-debug-calculation-trace-task-card.md)，个人 Debug UI 已由用户运行确认，当前仅剩未授权的 repository checkpoint；MP-1R 运行证据仍独立待补。
 - `CLOSED_TASK`（HDO）：[`hud-default-display-order-task-card.md`](hud-default-display-order-task-card.md)，HDO-1/HDO-2/HDO-2R1 已关闭，implementation checkpoints `f652182` / `f89d863`。
 - `CLOSED_TASK`：[`end-turn-hud-fixed-position-task-card.md`](end-turn-hud-fixed-position-task-card.md)，ETF-1 已由用户在 current v0.110.1 运行验证并关闭；[`shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md`](shadowmeld-block-multiplier-and-malaise-intent-master-task-card.md)，Shadowmeld 已完成并 case-specific RuntimeVerified，Malaise Deferred / 未解决；[`beta-v0-110-0-compatibility-and-mechanics-drift-master-task-card.md`](beta-v0-110-0-compatibility-and-mechanics-drift-master-task-card.md)，B110-0–B110-4 已关闭；[`damage-forecast-hud-placement-implementation-master-task-card.md`](damage-forecast-hud-placement-implementation-master-task-card.md)，I0–I3 与 I2-R11 已关闭，implementation checkpoints `a4b2e23` / `5e866d6`；[`feel-no-pain-ethereal-block-forecast-master-task-card.md`](feel-no-pain-ethereal-block-forecast-master-task-card.md)，FP0–FP5 已关闭，implementation checkpoint `a72fff5`；[`sts2sim-damage-forecast-evaluation-master-task-card.md`](sts2sim-damage-forecast-evaluation-master-task-card.md)，DF-S0–DF-S4C 已关闭；[`native-covering-screen-hud-visibility-master-task-card.md`](native-covering-screen-hud-visibility-master-task-card.md)，CV0–CV5 已关闭；[`damaging-status-curse-hud-hidden-master-task-card.md`](damaging-status-curse-hud-hidden-master-task-card.md)，HC0-HC5 已关闭；[`post-g6-full-name-unification-master-task-card.md`](post-g6-full-name-unification-master-task-card.md)，C1-C4 已关闭；[`forecast-engine-test-guardrails-master-task-card.md`](forecast-engine-test-guardrails-master-task-card.md)，TG0-TG7 已关闭；[`full-technical-identity-migration-master-task-card.md`](full-technical-identity-migration-master-task-card.md)，G6-0..G6-7 已关闭；[`baselib-dropdown-popup-localization-master-task-card.md`](baselib-dropdown-popup-localization-master-task-card.md)，BLP-0–BLP-5 已关闭并由用户运行验证。
 - `PROPOSED_TASK`：[`damage-forecast-timeline-api-unification-review-master-task-card.md`](damage-forecast-timeline-api-unification-review-master-task-card.md)，FTU-S0 尚未批准；[`forecast-engine-architecture-stabilization-master-task-card.md`](forecast-engine-architecture-stabilization-master-task-card.md)，保持 queued，尚未获得 AR1。

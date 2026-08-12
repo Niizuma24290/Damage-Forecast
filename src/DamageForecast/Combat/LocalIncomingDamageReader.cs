@@ -12,6 +12,9 @@ using MegaCrit.Sts2.Core.Models.Relics;
 using MegaCrit.Sts2.Core.MonsterMoves.Intents;
 using MegaCrit.Sts2.Core.ValueProps;
 using DamageForecast.Diagnostics;
+#if DAMAGE_FORECAST_DEBUG_TRACE
+using DamageForecast.Diagnostics.DebugTrace;
+#endif
 
 namespace DamageForecast.Combat;
 
@@ -114,12 +117,24 @@ public sealed class LocalIncomingDamageReader
             var snapshotIndex = enemySnapshotIndex++;
             if (enemy is null || !enemy.IsAlive || enemy.Monster?.NextMove?.Intents is null)
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                RecordSkippedEnemy(
+                    enemy,
+                    enemy is null
+                        ? DebugTraceReason.ReadFailure
+                        : !enemy.IsAlive
+                            ? DebugTraceReason.Dead
+                            : DebugTraceReason.NoAttackIntent);
+#endif
                 continue;
             }
 
             var attackIntents = enemy.Monster.NextMove.Intents.OfType<AttackIntent>().ToArray();
             if (attackIntents.Length == 0)
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                RecordSkippedEnemy(enemy, DebugTraceReason.NoAttackIntent);
+#endif
                 continue;
             }
 
@@ -134,6 +149,18 @@ public sealed class LocalIncomingDamageReader
             var survivalPreview = EnemyPreActionSurvivalPreview.Preview(enemy, snapshotIndex, enemyIntentContribution);
             if (!survivalPreview.WillExecuteIntentFor(survivalPreview.State.Identity.StableIdentity))
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                DebugTraceRuntime.AddStep(
+                    survivalPreview.State.Identity.StableIdentity,
+                    DebugTraceSourceLevel.Forecast,
+                    DebugTraceStepStatus.Skipped,
+                    DebugTraceReason.PredictedDeadBeforeAction,
+                    null,
+                    DebugTraceLane.BlockableDamage,
+                    DebugTraceGranularity.SingleEvent,
+                    enemyIntentContribution,
+                    0);
+#endif
                 continue;
             }
 
@@ -190,7 +217,7 @@ public sealed class LocalIncomingDamageReader
             return IncomingDamageRead.Unknown;
         }
 
-        if (VerifiedTurnEndPowerDamageReader.TryRead(localCreature, out _, out var turnEndPowerDamage))
+        if (VerifiedTurnEndPowerDamageReader.TryRead(localCreature, out var turnEndPowerEvents, out var turnEndPowerDamage))
         {
             raw += turnEndPowerDamage;
             foundDamage = foundDamage || turnEndPowerDamage > 0;
@@ -212,6 +239,16 @@ public sealed class LocalIncomingDamageReader
 
         if (!foundDamage)
         {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            RecordSimpleExpectedTrace(
+                enemyAttackEvents,
+                handTurnEndDamage,
+                turnEndPowerEvents,
+                localCreature.Block,
+                PreAttackBlockRead.Known(0, 0),
+                directHpLoss,
+                raw);
+#endif
             return IncomingDamageRead.Known(raw, localCreature.Block, directHpLoss);
         }
 
@@ -223,6 +260,16 @@ public sealed class LocalIncomingDamageReader
                 : IncomingDamageRead.Unknown;
         }
 
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        RecordSimpleExpectedTrace(
+            enemyAttackEvents,
+            handTurnEndDamage,
+            turnEndPowerEvents,
+            localCreature.Block,
+            preAttackBlock,
+            directHpLoss,
+            raw);
+#endif
         return IncomingDamageRead.Known(raw, localCreature.Block + preAttackBlock.Block, directHpLoss);
     }
 
@@ -247,12 +294,24 @@ public sealed class LocalIncomingDamageReader
             var snapshotIndex = enemySnapshotIndex++;
             if (enemy is null || !enemy.IsAlive || enemy.Monster?.NextMove?.Intents is null)
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                RecordSkippedEnemy(
+                    enemy,
+                    enemy is null
+                        ? DebugTraceReason.ReadFailure
+                        : !enemy.IsAlive
+                            ? DebugTraceReason.Dead
+                            : DebugTraceReason.NoAttackIntent);
+#endif
                 continue;
             }
 
             var attackIntents = enemy.Monster.NextMove.Intents.OfType<AttackIntent>().ToArray();
             if (attackIntents.Length == 0)
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                RecordSkippedEnemy(enemy, DebugTraceReason.NoAttackIntent);
+#endif
                 continue;
             }
 
@@ -267,6 +326,18 @@ public sealed class LocalIncomingDamageReader
             var survivalPreview = EnemyPreActionSurvivalPreview.Preview(enemy, snapshotIndex, enemyIntentContribution);
             if (!survivalPreview.WillExecuteIntentFor(survivalPreview.State.Identity.StableIdentity))
             {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+                DebugTraceRuntime.AddStep(
+                    survivalPreview.State.Identity.StableIdentity,
+                    DebugTraceSourceLevel.Forecast,
+                    DebugTraceStepStatus.Skipped,
+                    DebugTraceReason.PredictedDeadBeforeAction,
+                    null,
+                    DebugTraceLane.BlockableDamage,
+                    DebugTraceGranularity.SingleEvent,
+                    enemyIntentContribution,
+                    0);
+#endif
                 continue;
             }
 
@@ -384,6 +455,15 @@ public sealed class LocalIncomingDamageReader
             events,
             selectedBlock,
             futurePowerBlockEvents);
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTraceRuntime.RecordTimeline(
+            events,
+            availableBlock,
+            options,
+            selectedBlock,
+            futurePowerBlockEvents,
+            hpLossEvents);
+#endif
         if (options.IncludePowerHpLossModifiers || options.IncludeRelicHpLossModifiers)
         {
             var modified = VerifiedHpLossResultModifier.Apply(
@@ -393,12 +473,36 @@ public sealed class LocalIncomingDamageReader
                 ObservedHpLossBudgetTracker.GetSpent(player),
                 options.IncludePowerHpLossModifiers,
                 options.IncludeRelicHpLossModifiers);
-            return modified.State == HpLossResultModificationState.Supported
+            var supported = modified.State == HpLossResultModificationState.Supported;
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            var beforeModifier = hpLossEvents.Sum(e => Math.Max(0, e.VerifiedHpLoss));
+            DebugTraceRuntime.RecordModifier(
+                "HpLossResultModifiers",
+                beforeModifier,
+                modified.BlockableHpLoss + modified.DirectHpLoss,
+                supported);
+            if (supported)
+            {
+                DebugTraceRuntime.SetIncomingFinalFormula(
+                    modified.BlockableHpLoss,
+                    modified.DirectHpLoss);
+            }
+#endif
+            return supported
                 ? IncomingDamageDisplayRead.Known(modified.BlockableHpLoss + modified.DirectHpLoss)
                 : IncomingDamageDisplayRead.Unknown;
         }
 
-        return IncomingDamageDisplayRead.Known(hpLossEvents.Sum(e => Math.Max(0, e.VerifiedHpLoss)));
+        var blockableHpLoss = hpLossEvents
+            .Where(e => e.DisplayLane == HpLossDisplayLane.Blockable)
+            .Sum(e => Math.Max(0, e.VerifiedHpLoss));
+        var directHpLoss = hpLossEvents
+            .Where(e => e.DisplayLane == HpLossDisplayLane.DirectHpLoss)
+            .Sum(e => Math.Max(0, e.VerifiedHpLoss));
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTraceRuntime.SetIncomingFinalFormula(blockableHpLoss, directHpLoss);
+#endif
+        return IncomingDamageDisplayRead.Known(blockableHpLoss + directHpLoss);
     }
 
     private static IncomingDamageRead ReadKnownWithUnsupportedEnemyDamage(Creature localCreature)
@@ -459,6 +563,7 @@ public sealed class LocalIncomingDamageReader
             SaturatingAdd(handBlockableRaw, powerBlockableRaw),
             enemyAttackEvents.Sum(e => Math.Max(0, e.Amount)));
         var selectedBlock = Math.Max(0, localCreature.Block);
+        var preAttackBlock = PreAttackBlockRead.Known(0, 0);
         if (blockableRaw > 0)
         {
             if (futurePowerBlock.State != EtherealExhaustBlockReadState.Known)
@@ -466,7 +571,7 @@ public sealed class LocalIncomingDamageReader
                 return IncomingDamageRead.Unknown;
             }
 
-            var preAttackBlock = VerifiedPreAttackBlockReader.Read(player, localCreature);
+            preAttackBlock = VerifiedPreAttackBlockReader.Read(player, localCreature);
             if (preAttackBlock.State != PreAttackBlockReadState.Known)
             {
                 return IncomingDamageRead.Unknown;
@@ -513,6 +618,26 @@ public sealed class LocalIncomingDamageReader
             futurePowerBlock.State == EtherealExhaustBlockReadState.Known
                 ? futurePowerBlock.Events
                 : Array.Empty<UpcomingBlockEvent>());
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        var expectedOptions = new IncomingDamageDisplayOptions(
+            IncludeCurrentBlock: true,
+            IncludePowerBlock: true,
+            IncludeRelicBlock: true,
+            IncludePowerHpLossModifiers: true,
+            IncludeRelicHpLossModifiers: true);
+        DebugTraceRuntime.RecordTimeline(
+            sourceEvents,
+            new AvailableBlockInput(
+                localCreature.Block,
+                preAttackBlock.PowerBlock,
+                preAttackBlock.RelicBlock),
+            expectedOptions,
+            selectedBlock,
+            futurePowerBlock.State == EtherealExhaustBlockReadState.Known
+                ? futurePowerBlock.Events
+                : Array.Empty<UpcomingBlockEvent>(),
+            hpLossEvents);
+#endif
         if (!applyHpLossResultModifiers)
         {
             var blockableHpLoss = hpLossEvents
@@ -521,6 +646,9 @@ public sealed class LocalIncomingDamageReader
             var directHpLoss = hpLossEvents
                 .Where(e => e.DisplayLane == HpLossDisplayLane.DirectHpLoss)
                 .Sum(e => Math.Max(0, e.VerifiedHpLoss));
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            DebugTraceRuntime.SetExpectedFinalFormula(blockableHpLoss, directHpLoss);
+#endif
             return IncomingDamageRead.Known(blockableHpLoss, 0, directHpLoss);
         }
 
@@ -531,10 +659,28 @@ public sealed class LocalIncomingDamageReader
             ObservedHpLossBudgetTracker.GetSpent(player));
         if (modified.State == HpLossResultModificationState.Supported)
         {
+#if DAMAGE_FORECAST_DEBUG_TRACE
+            DebugTraceRuntime.RecordModifier(
+                "HpLossResultModifiers",
+                hpLossEvents.Sum(e => Math.Max(0, e.VerifiedHpLoss)),
+                modified.BlockableHpLoss + modified.DirectHpLoss,
+                supported: true);
+            DebugTraceRuntime.SetExpectedFinalFormula(
+                modified.BlockableHpLoss,
+                modified.DirectHpLoss);
+#endif
             return modified.BlockableHpLoss > 0 || modified.DirectHpLoss > 0
                 ? IncomingDamageRead.Known(modified.BlockableHpLoss, 0, modified.DirectHpLoss)
                 : IncomingDamageRead.Hidden;
         }
+
+#if DAMAGE_FORECAST_DEBUG_TRACE
+        DebugTraceRuntime.RecordModifier(
+            "HpLossResultModifiers",
+            hpLossEvents.Sum(e => Math.Max(0, e.VerifiedHpLoss)),
+            modified.BlockableHpLoss + modified.DirectHpLoss,
+            supported: false);
+#endif
 
         if (modified.State == HpLossResultModificationState.UnsupportedBecauseAggregateEnemyHpLossWithTungstenRod
             && modified.DirectHpLoss > 0)
@@ -781,6 +927,155 @@ public sealed class LocalIncomingDamageReader
             int.MaxValue,
             (long)Math.Max(0, left) + Math.Max(0, right));
     }
+
+#if DAMAGE_FORECAST_DEBUG_TRACE
+    private static void RecordSkippedEnemy(Creature? enemy, DebugTraceReason reason)
+    {
+        if (!DebugTraceRuntime.IsCapturing)
+        {
+            return;
+        }
+
+        DebugTraceRuntime.AddStep(
+            enemy?.Monster?.GetType().Name ?? enemy?.GetType().Name ?? "Enemy[null]",
+            DebugTraceSourceLevel.Native,
+            DebugTraceStepStatus.Skipped,
+            reason,
+            null,
+            DebugTraceLane.BlockableDamage,
+            DebugTraceGranularity.Unknown,
+            null,
+            null);
+    }
+
+    private static void RecordSimpleExpectedTrace(
+        IReadOnlyList<BlockableFutureDamageEvent> enemyAttackEvents,
+        int handTurnEndDamage,
+        IReadOnlyList<VerifiedTurnEndPowerDamageEvent> powerEvents,
+        int currentBlock,
+        PreAttackBlockRead preAttackBlock,
+        int directHpLoss,
+        int rawDamage)
+    {
+        if (!DebugTraceRuntime.IsCapturing)
+        {
+            return;
+        }
+
+        foreach (var enemyEvent in enemyAttackEvents)
+        {
+            DebugTraceRuntime.AddStep(
+                enemyEvent.Source,
+                DebugTraceSourceLevel.Native,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                enemyEvent.NativeExecutionOrder,
+                DebugTraceLane.BlockableDamage,
+                enemyEvent.IsSingleVerifiedEvent
+                    ? DebugTraceGranularity.PerHit
+                    : DebugTraceGranularity.Aggregate,
+                enemyEvent.Amount,
+                enemyEvent.Amount);
+            DebugTraceRuntime.AddStep(
+                $"{enemyEvent.Source}.NativeModifiers",
+                DebugTraceSourceLevel.Unknown,
+                DebugTraceStepStatus.Unknown,
+                DebugTraceReason.AlreadyIncluded,
+                enemyEvent.NativeExecutionOrder,
+                DebugTraceLane.Modifier,
+                DebugTraceGranularity.Unknown,
+                null,
+                null);
+        }
+
+        if (handTurnEndDamage > 0)
+        {
+            DebugTraceRuntime.AddStep(
+                "HandTurnEndDamage",
+                DebugTraceSourceLevel.Forecast,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                null,
+                DebugTraceLane.BlockableDamage,
+                DebugTraceGranularity.Aggregate,
+                handTurnEndDamage,
+                handTurnEndDamage);
+        }
+
+        foreach (var powerEvent in powerEvents)
+        {
+            DebugTraceRuntime.AddStep(
+                powerEvent.Source,
+                DebugTraceSourceLevel.Forecast,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                powerEvent.NativeExecutionOrder,
+                DebugTraceLane.BlockableDamage,
+                powerEvent.IsSingleVerifiedEvent
+                    ? DebugTraceGranularity.SingleEvent
+                    : DebugTraceGranularity.Aggregate,
+                powerEvent.Amount,
+                powerEvent.Amount);
+        }
+
+        if (directHpLoss > 0)
+        {
+            DebugTraceRuntime.AddStep(
+                "DirectTurnEndHpLoss",
+                DebugTraceSourceLevel.Forecast,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                null,
+                DebugTraceLane.DirectHpLoss,
+                DebugTraceGranularity.Aggregate,
+                directHpLoss,
+                directHpLoss);
+        }
+
+        DebugTraceRuntime.AddStep(
+            "CurrentBlock",
+            DebugTraceSourceLevel.Native,
+            DebugTraceStepStatus.Applied,
+            DebugTraceReason.None,
+            null,
+            DebugTraceLane.BlockGain,
+            DebugTraceGranularity.Aggregate,
+            Math.Max(0, currentBlock),
+            Math.Max(0, currentBlock));
+        if (preAttackBlock.PowerBlock > 0)
+        {
+            DebugTraceRuntime.AddStep(
+                "PowerBlock",
+                DebugTraceSourceLevel.Forecast,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                null,
+                DebugTraceLane.BlockGain,
+                DebugTraceGranularity.Aggregate,
+                preAttackBlock.PowerBlock,
+                preAttackBlock.PowerBlock);
+        }
+
+        if (preAttackBlock.RelicBlock > 0)
+        {
+            DebugTraceRuntime.AddStep(
+                "RelicBlock",
+                DebugTraceSourceLevel.Forecast,
+                DebugTraceStepStatus.Applied,
+                DebugTraceReason.None,
+                null,
+                DebugTraceLane.BlockGain,
+                DebugTraceGranularity.Aggregate,
+                preAttackBlock.RelicBlock,
+                preAttackBlock.RelicBlock);
+        }
+
+        DebugTraceRuntime.SetExpectedSimpleFormula(
+            rawDamage,
+            SaturatingAdd(currentBlock, preAttackBlock.Block),
+            directHpLoss);
+    }
+#endif
 
     private readonly record struct HandTurnEndHpLossEvent(
         string Source,

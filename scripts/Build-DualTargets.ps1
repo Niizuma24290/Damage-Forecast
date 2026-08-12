@@ -155,6 +155,7 @@ foreach ($target in $targets) {
             $projectPath,
             "-p:BaseLibReferencePath=$BaseLibReferencePath",
             "-p:Sts2ReferenceRoot=$($target.ReferenceRoot)",
+            "-p:DamageForecastDebugTrace=false",
             "-p:OutputPath=$buildOutputPath",
             "-p:BaseIntermediateOutputPath=$intermediateOutputPath"
         )
@@ -168,6 +169,7 @@ foreach ($target in $targets) {
         "--no-restore",
         "-p:BaseLibReferencePath=$BaseLibReferencePath",
         "-p:Sts2ReferenceRoot=$($target.ReferenceRoot)",
+        "-p:DamageForecastDebugTrace=false",
         "-p:OutputPath=$buildOutputPath",
         "-p:BaseIntermediateOutputPath=$intermediateOutputPath"
     )
@@ -179,6 +181,7 @@ foreach ($target in $targets) {
         "--no-build",
         "-p:BaseLibReferencePath=$BaseLibReferencePath",
         "-p:Sts2ReferenceRoot=$($target.ReferenceRoot)",
+        "-p:DamageForecastDebugTrace=false",
         "-p:OutputPath=$buildOutputPath",
         "-p:BaseIntermediateOutputPath=$intermediateOutputPath",
         "-o",
